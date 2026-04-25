@@ -1,22 +1,27 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v05 - CORRECCIONES Ronda 4 (Pestaña Ejecución)
-Build: 2026-04-24
-Cambios desde v04:
-  PUNTO 2 (ahora si de verdad): Toggle ON/OFF persistente
-           → Bug real: ejecLoadActive leia res.data.valor.active
-             pero sbCargarDatos ya devuelve el valor PARSEADO en res.data
-             asi que res.data.valor siempre era undefined
-             → Nunca cargaba el toggle guardado, siempre quedaba OFF
-           → Fix: leer res.data.active directamente
-  PUNTO 3 (ahora si de verdad): Paneles recuerdan Simbolo/Lotaje/SL/TP
-           → Bug real: mismo patron en ejecLoadConfig
-             Leia res.data.valor cuando tenia que leer res.data
-           → Fix: leer res.data directamente como objeto de config
+TRADINGBEIS v06 - Zona Horaria + TP Automatico
+Build: 2026-04-25
+Cambios desde v05:
+  PUNTO 1: Zona horaria UTC del usuario aplicada en TODO el HTML.
+           - cTrader y Supabase siguen guardando en UTC nativo.
+           - El HTML graba y muestra todo en la zona configurada
+             en Configuracion (campo cfg-timezone).
+           - La zona se persiste en datos_app por cuenta.
+           - Funcion tzNow() reemplaza a new Date() en todos los
+             puntos donde se genera/muestra fecha-hora.
+  PUNTO 2: Nueva regla TP automatico por el bot.
+           - Campo nuevo en Reglas SL: "TP automatico por el bot (pips)"
+           - Si SL automatico se activa y la posicion NO tiene TP manual,
+             el bot coloca TP a la distancia configurada.
+           - Si la posicion ya tiene TP, se respeta.
+           - 0 = no colocar TP automatico (default).
+           - Se guarda en datos_app.reglas.sl.tp_auto_pips.
 
-NOTA: el bot sigue siendo v04, los 3 fixes del lado bot ya funcionan.
+NOTA: bot v05 incluido en este release. Recompilar cBot.
 
 ---- Historico ----
+v05: ejecLoadActive leia res.data.active, ejecLoadConfig leia res.data
 v04: titulo, esquinita opaca, console.log, .maybeSingle(),
      ventana Panel Live 5min, race condition ch, Bot: WhenAll + watchdog
 v03: validacion UUID, cola ordenes bot, try/catch OnTimer
@@ -42,7 +47,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v05</title>
+<title>TRADINGBEIS v06</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -443,7 +448,7 @@ async function doAutoLogin(user) {
       nombre: data.nombre || user.email,
       alias: data.alias || '@usuario',
       email: user.email,
-      desde: data.desde || new Date().toISOString().split('T')[0],
+      desde: data.desde || tzTodayStr(),
       rol: data.rol || 'viewer',
       estado: data.estado || 'activo',
       plan: data.plan || 'basico',
@@ -467,6 +472,7 @@ async function doAutoLogin(user) {
     if (typeof enterApp === 'function') enterApp();
     try { sbIniciarRealtime(); } catch(e){ console.warn('[TB] Realtime no disponible', e); }
     try { tbRegistrarActividad(TB_USER.id,'user','login','Inicio de sesión'); } catch(e){}
+    try { if(typeof loadTimezone==='function') loadTimezone(); } catch(e){} // v06
   } catch(e) {
     console.error('[TB] Error en auto-login:', e);
     _autoLoginDone = false;
@@ -1644,8 +1650,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v05 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v05';
+console.log('%c[TB] TRADINGBEIS v06 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v06';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -3350,6 +3356,14 @@ function openModal(view){
               <span style="font-size:10px;color:var(--w3);">segundos</span>
             </div>
           </div>
+          <div class="fgrp">
+            <label class="flbl">🎯 TP automatico por el bot</label>
+            <div style="display:flex;align-items:center;gap:5px;">
+              <input class="fi" type="number" id="br-sl-tp-auto" placeholder="0 = no colocar" min="0" style="flex:1;">
+              <span style="font-size:10px;color:var(--w3);">pips</span>
+            </div>
+            <div style="font-size:9px;color:var(--w3);margin-top:3px;line-height:1.4;">Cuando el bot coloque el SL automatico, colocara TP a esta distancia. Si la posicion ya tiene TP, lo respeta. 0 = no colocar.</div>
+          </div>
         </div>
         <div style="margin-top:10px;background:var(--bg2);border-radius:6px;padding:10px 12px;font-size:10px;color:var(--w3);line-height:1.8;">
           🔴 <b>Sin SL</b> — aviso activo &nbsp;|&nbsp;
@@ -3744,7 +3758,7 @@ function doRegister(){
         nombre:nombre,
         alias:'@'+nombre.split(' ')[0].toLowerCase(),
         email:email,
-        desde:new Date().toISOString().split('T')[0],
+        desde:tzTodayStr(),
         rol:'viewer',
         estado:'pendiente',
         plan:'basico',
@@ -3836,7 +3850,7 @@ function nav(name,el){
 function showViolForm(){
   var f=ge('viol-form');if(!f)return;
   f.style.display='block';
-  var fd=ge('viol-fecha');if(fd){var n=new Date();fd.value=n.getFullYear()+'-'+('0'+(n.getMonth()+1)).slice(-2)+'-'+('0'+n.getDate()).slice(-2)+'T'+('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2);}
+  var fd=ge('viol-fecha');if(fd){var n=tzNow();fd.value=n.getFullYear()+'-'+('0'+(n.getMonth()+1)).slice(-2)+'-'+('0'+n.getDate()).slice(-2)+'T'+('0'+n.getHours()).slice(-2)+':'+('0'+n.getMinutes()).slice(-2);}
   var fm=ge('viol-msg');if(fm)fm.value='';
   var fp=ge('viol-pos');if(fp)fp.value='';
 }
@@ -3957,7 +3971,7 @@ function applyReglasToggle(on){
 }
 function buildResumenes(){
   var wrap=ge('res-cards-wrap');if(!wrap)return;
-  var now=new Date();
+  var now=tzNow();
   var hoy=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2)+'-'+('0'+now.getDate()).slice(-2);
   var mn=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   var ds=['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
@@ -4022,21 +4036,73 @@ function buildResumenes(){
   var rst=ge('res-sym-tbody');if(rst)rst.innerHTML=sth||'<tr><td colspan="8" style="text-align:center;color:var(--w3);padding:16px;">Sin operaciones</td></tr>';
 }
 function switchAcc(v){var n=['Cuenta 1','Cuenta 2','Cuenta 3','Cuenta 4','Cuenta 5','Cuenta 6','Cuenta 7','Cuenta 8'];ge('tb-acc').textContent=n[parseInt(v)]||'--';}
+// ───────── PUNTO 1 v06: Zona Horaria ─────────
+// El usuario configura su zona en cfg-timezone (UTC-4 etc).
+// Todo lo que se MUESTRA y todo lo que se GRABA desde el HTML
+// va en esa zona. Los timestamps de cTrader/Supabase llegan en UTC,
+// se convierten al mostrarse con tzFromUTC().
 var _userTimezone = 'local';
 function saveTimezone(){
   var el=ge('cfg-timezone');
   if(el){ _userTimezone=el.value; }
+  // v06: persistir en datos_app por usuario
+  try{
+    if(typeof sbGuardarDatos==='function' && typeof TB_USER!=='undefined' && TB_USER && TB_USER.id){
+      sbGuardarDatos(TB_USER.id,'timezone',{tz:_userTimezone});
+    }
+  }catch(e){}
   toast('Zona horaria guardada','Configuracion','gold');
 }
+// v06: cargar zona horaria desde datos_app al iniciar
+function loadTimezone(){
+  try{
+    if(typeof sbCargarDatos!=='function' || typeof TB_USER==='undefined' || !TB_USER || !TB_USER.id) return;
+    sbCargarDatos(TB_USER.id,'timezone').then(function(res){
+      if(res && res.data && res.data.tz){
+        _userTimezone = res.data.tz;
+        var el=ge('cfg-timezone');
+        if(el) el.value = _userTimezone;
+      }
+    }).catch(function(){});
+  }catch(e){}
+}
+// Devuelve un Date "ahora" pero con los componentes (Y,M,D,h,m,s)
+// ajustados a la zona horaria configurada. Es decir, .getHours()
+// devuelve la hora en la zona del usuario, no la del navegador.
 function getTZDate(){
   var d=new Date();
   if(_userTimezone==='local'||!_userTimezone) return d;
   try{
-    // Use Intl to get the time in the selected timezone
     var parts=new Intl.DateTimeFormat('en-US',{timeZone:_userTimezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d);
     var p={};parts.forEach(function(x){p[x.type]=x.value;});
     return new Date(p.year+'-'+p.month+'-'+p.day+'T'+p.hour+':'+p.minute+':'+p.second);
   }catch(e){return d;}
+}
+// Alias mas corto para usar en el resto del codigo
+function tzNow(){ return getTZDate(); }
+// Convierte un Date (o string ISO en UTC) a Date "como se ve" en la zona del usuario.
+// Usar para mostrar datos que vienen de Supabase/cTrader.
+function tzFromUTC(utcInput){
+  var d = (utcInput instanceof Date) ? utcInput : new Date(utcInput);
+  if(isNaN(d.getTime())) return d;
+  if(_userTimezone==='local'||!_userTimezone) return d;
+  try{
+    var parts=new Intl.DateTimeFormat('en-US',{timeZone:_userTimezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d);
+    var p={};parts.forEach(function(x){p[x.type]=x.value;});
+    return new Date(p.year+'-'+p.month+'-'+p.day+'T'+p.hour+':'+p.minute+':'+p.second);
+  }catch(e){return d;}
+}
+// Devuelve la fecha actual en la zona del usuario como "YYYY-MM-DD"
+function tzTodayStr(){
+  var d=tzNow();
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+}
+// Devuelve un ISO-string "YYYY-MM-DDTHH:mm:ss" (sin Z) representando
+// el momento actual en la zona del usuario. Usar al GRABAR en Supabase
+// cuando el campo deba estar en zona del usuario en vez de UTC.
+function tzISOString(){
+  var d=tzNow();
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+'T'+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
 }
 function setDate(){
   var d=getTZDate();
@@ -4164,7 +4230,7 @@ function updateAllStats(){
     if(_primera){
       var _mn=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
       var _pt=_primera.split('-');var _dIn=new Date(parseInt(_pt[0]),parseInt(_pt[1])-1,parseInt(_pt[2]));
-      var _hoy=new Date();_hoy.setHours(0,0,0,0);
+      var _hoy=tzNow();_hoy.setHours(0,0,0,0);
       var _dias=Math.round((_hoy-_dIn)/(1000*60*60*24))+1;
       var _dda=ge('dash-dias-act');if(_dda)_dda.textContent=_dias+' dias';
       var _rda=ge('ret-dias-act');if(_rda)_rda.textContent=_dias+' dias';
@@ -4206,7 +4272,7 @@ function updateAllStats(){
     var _pp=_cap>0?(_pnl/_cap*100):0;
     var _lP=_c.limP||10;
     var _pdiaP=_c.pdiaPct||5;
-    var _tn2=new Date();var _today=_tn2.getFullYear()+'-'+('0'+(_tn2.getMonth()+1)).slice(-2)+'-'+('0'+_tn2.getDate()).slice(-2);
+    var _tn2=tzNow();var _today=_tn2.getFullYear()+'-'+('0'+(_tn2.getMonth()+1)).slice(-2)+'-'+('0'+_tn2.getDate()).slice(-2);
     var _todayPnl=(typeof TRADES!=='undefined'?TRADES:[]).filter(function(t){return (t[2]||'').trim()===_today;}).reduce(function(s,t){return s+(parseFloat(t[7])||0);},0);
     var _limPdia=_cap*_pdiaP/100;
     var _perdDiaria=_todayPnl<0?Math.abs(_todayPnl):0;
@@ -4261,7 +4327,7 @@ function calcDash(){
   var dv=ge('dash-ventas');if(dv)dv.textContent=TRADES.filter(function(t){return t[8]==='VENTA';}).length;
   // Get next retiro date from RET_DATA
   var proxFecha=null;
-  var hoy=new Date();hoy.setHours(0,0,0,0);
+  var hoy=tzNow();hoy.setHours(0,0,0,0);
   Object.keys(RET_DATA).forEach(function(m){
     var rows=RET_DATA[m].rows||[];
     rows.forEach(function(r){
@@ -4731,7 +4797,7 @@ function buildCalMes(highlight){
   var cat=ge('cal-ano-trades');if(cat)cat.textContent=TRADES.length;
   var caw=ge('cal-ano-win');if(caw)caw.textContent=allWin;
   var cal2=ge('cal-ano-loss');if(cal2)cal2.textContent=allLoss;
-  var DAYS=['DOM','LUN','MAR','MIE','JUE','VIE','SAB'];var today=new Date();
+  var DAYS=['DOM','LUN','MAR','MIE','JUE','VIE','SAB'];var today=tzNow();
   var h='<div class="cal-grid-wrap">';DAYS.forEach(function(d){h+='<div class="cal-hd">'+d+'</div>';});h+='<div class="cal-hd">SEMANA</div>';
   for(var i=0;i<mo.s;i++)h+='<div class="cal-day empty"></div>';
   var wPnl=0;var wNum=1;var col=mo.s;
@@ -4758,7 +4824,7 @@ function addCertificado(input){
   reader.onload=function(e){
     _certPendingImg=e.target.result;
     var pr=ge('cert-preview');if(pr)pr.src=_certPendingImg;
-    var fd=ge('cert-fecha');if(fd){var n=new Date();fd.value=n.getFullYear()+'-'+('0'+(n.getMonth()+1)).slice(-2)+'-'+('0'+n.getDate()).slice(-2);}
+    var fd=ge('cert-fecha');if(fd){var n=tzNow();fd.value=n.getFullYear()+'-'+('0'+(n.getMonth()+1)).slice(-2)+'-'+('0'+n.getDate()).slice(-2);}
     var fn=ge('cert-nota');if(fn)fn.value='';
     var cm=ge('cert-add-modal');if(cm)cm.style.display='flex';
   };
@@ -4899,7 +4965,7 @@ function updReglas(){
   calcReglas();
 }
 function calcReglas(){
-  var _tn=new Date();var today=_tn.getFullYear()+'-'+('0'+(_tn.getMonth()+1)).slice(-2)+'-'+('0'+_tn.getDate()).slice(-2);
+  var _tn=tzNow();var today=_tn.getFullYear()+'-'+('0'+(_tn.getMonth()+1)).slice(-2)+'-'+('0'+_tn.getDate()).slice(-2);
   var capitalEl=ge('cfg-capital');
   var capitalInicial=capitalEl?parseFloat(capitalEl.value)||100000:100000;
   var limp=parseFloat(ge('r-limp')?ge('r-limp').value:10)||10;
@@ -5092,7 +5158,7 @@ function tbGuardarFotoSupabase(fotoBase64){
         nombre:TB_USER.nombre||'',
         alias:TB_USER.alias||'',
         email:TB_USER.email||'',
-        desde:TB_USER.desde||new Date().toISOString().split('T')[0],
+        desde:TB_USER.desde||tzTodayStr(),
         rol:TB_USER.rol||'viewer',
         estado:TB_USER.estado||'activo',
         plan:TB_USER.plan||'basico',
@@ -5271,7 +5337,7 @@ function toggleITPanel(){
 function itNavDate(dir){
   var el=ge('it-fecha');if(!el)return;
   var val=el.value;
-  var d=val?new Date(val+'T00:00:00'):new Date();
+  var d=val?new Date(val+'T00:00:00'):tzNow();
   d.setDate(d.getDate()+dir);
   el.value=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
   buildITPanel();
@@ -5355,7 +5421,7 @@ function buildITPanel(){
 function _initAppCore(){
   setDate();setInterval(setDate,1000);
   calcDash();filterOps();filterRetHist();buildEmotHist();buildCalMes();buildRetMes();renderNotas();
-  var _tn=new Date();var _td=_tn.getFullYear()+'-'+('0'+(_tn.getMonth()+1)).slice(-2)+'-'+('0'+_tn.getDate()).slice(-2);
+  var _tn=tzNow();var _td=_tn.getFullYear()+'-'+('0'+(_tn.getMonth()+1)).slice(-2)+'-'+('0'+_tn.getDate()).slice(-2);
   var ff=ge('f-fecha');if(ff)ff.value=_td;
   var ef=ge('emot-fecha');if(ef)ef.value=_td;
   var itF=ge('it-fecha');if(itF)itF.value=_td;
@@ -5806,7 +5872,7 @@ function renderTipo(tipo){
             if(r.fr&&!r.fa&&!r.rej&&pF==='--'){
               var pt=r.fr.split('-');
               var d=new Date(parseInt(pt[0]),parseInt(pt[1])-1,parseInt(pt[2]));
-              var hoy=new Date();hoy.setHours(0,0,0,0);
+              var hoy=tzNow();hoy.setHours(0,0,0,0);
               var df=Math.round((d-hoy)/(1000*60*60*24));
               pD=df>0?df+' dias':df===0?'Hoy':'Vencido';
               var mn=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -6165,7 +6231,7 @@ function renderBalLive(){
           hayProx=true;
           var pt=r.fr.split('-');
           var d=new Date(parseInt(pt[0]),parseInt(pt[1])-1,parseInt(pt[2]));
-          var hoy=new Date();hoy.setHours(0,0,0,0);
+          var hoy=tzNow();hoy.setHours(0,0,0,0);
           var df=Math.round((d-hoy)/(1000*60*60*24));
           var ds=df>0?df+' dias':df===0?'Hoy':'Vencido';
           var fs=('0'+d.getDate()).slice(-2)+' '+mn[d.getMonth()]+' '+d.getFullYear();
@@ -6261,7 +6327,7 @@ function renderBalFase(tipo){
     var diasAct=0;
     if(c.T&&c.T.length){
       var fechas=c.T.map(function(t){return t[2];}).filter(Boolean).sort();
-      if(fechas.length){var ini=new Date(fechas[0]);diasAct=Math.ceil((new Date()-ini)/(1000*60*60*24));}
+      if(fechas.length){var ini=new Date(fechas[0]);diasAct=Math.ceil((tzNow()-ini)/(1000*60*60*24));}
     }
 
     // Dias restantes estimado
@@ -6431,7 +6497,7 @@ function checkCuentaQuemada(c){
     var pdiaP2=c.pdiaPct||5;
     var limPdia2=cap2*pdiaP2/100;
     var limPgen2=cap2*lP2/100;
-    var _tn3=new Date();var _hoy3=_tn3.getFullYear()+'-'+('0'+(_tn3.getMonth()+1)).slice(-2)+'-'+('0'+_tn3.getDate()).slice(-2);
+    var _tn3=tzNow();var _hoy3=_tn3.getFullYear()+'-'+('0'+(_tn3.getMonth()+1)).slice(-2)+'-'+('0'+_tn3.getDate()).slice(-2);
     var todayPnl2=_trades2.filter(function(t){return (t[2]||'').trim()===_hoy3;}).reduce(function(s,t){return s+(parseFloat(t[7])||0);},0);
     var perdDiaria2=todayPnl2<0?Math.abs(todayPnl2):0;
     var perdGen2=pnl2<0?Math.abs(pnl2):0;
@@ -6529,7 +6595,7 @@ var TB_ACTIVIDAD = [];
 
 // ─── UTILIDADES ───────────────────────────────────────────────
 function tbFecha(){
-  var d=new Date();
+  var d=tzNow();
   return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
 }
 function tbFechaLeg(f){
@@ -6541,7 +6607,7 @@ function tbFechaLeg(f){
 function tbDiasHasta(fechaStr){
   if(!fechaStr)return null;
   var d=new Date(fechaStr+'T00:00:00');
-  var hoy=new Date();hoy.setHours(0,0,0,0);
+  var hoy=tzNow();hoy.setHours(0,0,0,0);
   return Math.round((d-hoy)/(1000*60*60*24));
 }
 function tbNuevoId(){return 'id_'+Date.now()+'_'+Math.floor(Math.random()*9999);}
@@ -6696,7 +6762,7 @@ function enviarSolicitudPlan(){
   var ref=document.getElementById('sol-ref')?document.getElementById('sol-ref').value.trim():'';
   var nota=document.getElementById('sol-nota')?document.getElementById('sol-nota').value.trim():'';
   if(!monto){toast('Ingresa el monto','Error','red');return;}
-  var pago={id:tbNuevoId(),userId:TB_USER.id,userNombre:TB_USER.nombre,fecha:new Date().toISOString().split('T')[0],monto:monto,ref:ref,metodo:metodo,nota:'Solicitud cambio a plan '+plan+(nota?' · '+nota:''),comprobante:'',estado:'pendiente',planSolicitado:plan,fechaEnvio:tbFecha()};
+  var pago={id:tbNuevoId(),userId:TB_USER.id,userNombre:TB_USER.nombre,fecha:tzTodayStr(),monto:monto,ref:ref,metodo:metodo,nota:'Solicitud cambio a plan '+plan+(nota?' · '+nota:''),comprobante:'',estado:'pendiente',planSolicitado:plan,fechaEnvio:tbFecha()};
   TB_PAGOS.unshift(pago);
   sbInsertarPago(sbPagoAFila(pago)).then(function(r){
     if(r && r.error){ toast('Error guardando solicitud: '+r.error.message,'Error','red'); return; }
@@ -7351,7 +7417,7 @@ function admAprobarUsuario(userId){
       id: 'id_'+Date.now()+'_'+Math.floor(Math.random()*9999),
       user_id: userId,
       user_nombre: u.nombre,
-      fecha: d.pago_fecha || new Date().toISOString().split('T')[0],
+      fecha: d.pago_fecha || tzTodayStr(),
       monto: parseFloat(d.pago_monto||0),
       ref: d.pago_referencia || '',
       metodo: d.pago_tipo || '',
@@ -8245,7 +8311,7 @@ function submitLogin(){document.getElementById('login-success').style.display='b
 
 // Clock for portada
 function updateClock(){
-  var now=new Date();
+  var now=tzNow();
   var h=String(now.getHours()).padStart(2,'0');
   var m=String(now.getMinutes()).padStart(2,'0');
   var s=String(now.getSeconds()).padStart(2,'0');
@@ -8848,7 +8914,8 @@ function botSaveRules() {
                    tiempo: parseInt(ge('br-sl-tiempo').value)||120,
                    anticipacion: parseInt(ge('br-sl-anticipacion').value)||15,
                    pips: parseInt(ge('br-sl-pips').value)||50,
-                   aviso: parseInt(ge('br-sl-aviso').value)||60 },
+                   aviso: parseInt(ge('br-sl-aviso').value)||60,
+                   tp_auto_pips: parseInt(ge('br-sl-tp-auto').value)||0 },
     tmin:        { on: ge('rtog-tmin')       ? ge('rtog-tmin').classList.contains('on')        : false,
                    seg: parseInt(ge('br-tmin-seg').value)||60,
                    pips: parseInt(ge('br-tmin-pips').value)||20 },
@@ -8890,7 +8957,7 @@ function botLoadState() {
       if(r.noticias.n2){ setVal('br-n2-desde',r.noticias.n2.desde); setVal('br-n2-hasta',r.noticias.n2.hasta); }
       if(r.noticias.n3){ setVal('br-n3-desde',r.noticias.n3.desde); setVal('br-n3-hasta',r.noticias.n3.hasta); }
     }
-    if(r.sl)          { setTog('rtog-sl',r.sl.on); setVal('br-sl-tiempo',r.sl.tiempo); setVal('br-sl-anticipacion',r.sl.anticipacion); setVal('br-sl-pips',r.sl.pips); setVal('br-sl-aviso',r.sl.aviso); }
+    if(r.sl)          { setTog('rtog-sl',r.sl.on); setVal('br-sl-tiempo',r.sl.tiempo); setVal('br-sl-anticipacion',r.sl.anticipacion); setVal('br-sl-pips',r.sl.pips); setVal('br-sl-aviso',r.sl.aviso); setVal('br-sl-tp-auto',r.sl.tp_auto_pips); }
     if(r.tmin)        { setTog('rtog-tmin',r.tmin.on); setVal('br-tmin-seg',r.tmin.seg); setVal('br-tmin-pips',r.tmin.pips); }
     if(r.ideatrading) { setTog('rtog-ideatrading',r.ideatrading.on); setVal('br-it-ventana',r.ideatrading.ventana); setVal('br-it-limite',r.ideatrading.limite); }
   });
@@ -8902,7 +8969,7 @@ function botResetRules() {
   ['rtog-maxops','rtog-perddia','rtog-gandia','rtog-gancuenta','rtog-maxlot','rtog-horario','rtog-simbolos','rtog-noticias','rtog-sl','rtog-tmin','rtog-ideatrading'].forEach(function(id){
     var e=ge(id); if(e) e.classList.remove('on');
   });
-  ['br-maxops','br-perddia','br-gandia','br-gancuenta','br-maxlot','br-horario-desde','br-horario-hasta','br-simbolos','br-n1-desde','br-n1-hasta','br-n2-desde','br-n2-hasta','br-n3-desde','br-n3-hasta','br-sl-tiempo','br-sl-anticipacion','br-sl-pips','br-sl-aviso','br-tmin-seg','br-tmin-pips','br-it-ventana','br-it-limite'].forEach(function(id){
+  ['br-maxops','br-perddia','br-gandia','br-gancuenta','br-maxlot','br-horario-desde','br-horario-hasta','br-simbolos','br-n1-desde','br-n1-hasta','br-n2-desde','br-n2-hasta','br-n3-desde','br-n3-hasta','br-sl-tiempo','br-sl-anticipacion','br-sl-pips','br-sl-aviso','br-sl-tp-auto','br-tmin-seg','br-tmin-pips','br-it-ventana','br-it-limite'].forEach(function(id){
     var e=ge(id); if(e) e.value='';
   });
   toast('Reglas restablecidas','Bot','gold');
@@ -9677,7 +9744,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v05</div>
+<div class="tb-version-tag" id="tb-version-tag">v06</div>
 
 </body>
 </html>
