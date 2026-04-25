@@ -1,26 +1,22 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v06 - Zona Horaria + TP Automatico
+TRADINGBEIS v07 - Visualizacion zona horaria + Retiros automaticos del bot
 Build: 2026-04-25
-Cambios desde v05:
-  PUNTO 1: Zona horaria UTC del usuario aplicada en TODO el HTML.
-           - cTrader y Supabase siguen guardando en UTC nativo.
-           - El HTML graba y muestra todo en la zona configurada
-             en Configuracion (campo cfg-timezone).
-           - La zona se persiste en datos_app por cuenta.
-           - Funcion tzNow() reemplaza a new Date() en todos los
-             puntos donde se genera/muestra fecha-hora.
-  PUNTO 2: Nueva regla TP automatico por el bot.
-           - Campo nuevo en Reglas SL: "TP automatico por el bot (pips)"
-           - Si SL automatico se activa y la posicion NO tiene TP manual,
-             el bot coloca TP a la distancia configurada.
-           - Si la posicion ya tiene TP, se respeta.
-           - 0 = no colocar TP automatico (default).
-           - Se guarda en datos_app.reglas.sl.tp_auto_pips.
+Cambios desde v06:
+  PUNTO 1: tbGetUserTzOffset ahora lee _userTimezone (la zona configurada
+           en cfg-timezone) en vez de TB_USER.meta.zona_horaria. Esto activa
+           la conversion UTC → zona usuario que ya estaba implementada
+           en la tabla de operaciones, panel live, hooks de realtime, etc.
+           El bot sigue grabando en UTC; el HTML lo convierte al mostrar.
+  PUNTO 2: Canal realtime para datos_app filtrado por user_id.
+           - Cuando el bot inserta un retiro automatico en hist_data,
+             el HTML recarga HIST_DATA y refresca la vista de retiros
+             al instante, sin recargar la pagina.
 
-NOTA: bot v05 incluido en este release. Recompilar cBot.
+NOTA: Bot v07 incluido en este release. Recompilar cBot.
 
 ---- Historico ----
+v06: zona horaria global, TP automatico bot, persistencia timezone
 v05: ejecLoadActive leia res.data.active, ejecLoadConfig leia res.data
 v04: titulo, esquinita opaca, console.log, .maybeSingle(),
      ventana Panel Live 5min, race condition ch, Bot: WhenAll + watchdog
@@ -47,7 +43,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v06</title>
+<title>TRADINGBEIS v07</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -331,6 +327,33 @@ function sbIniciarRealtime() {
     })
     .subscribe();
   _rtChannels.push(chAct);
+
+  // v07: canal realtime para hist_data (retiros automaticos del bot)
+  // Cuando el bot inserta un retiro detectado del broker, se hace upsert
+  // en datos_app con clave='hist_data'. Aqui lo recargamos al instante.
+  try {
+    var chHistData = sbClient.channel('rt-histdata-'+TB_USER.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'datos_app', filter: 'user_id=eq.'+TB_USER.id }, function(payload){
+        try {
+          var d = payload.new || payload.old || {};
+          if (d.clave !== 'hist_data') return;
+          if (payload.new && payload.new.valor) {
+            var nuevoHist = payload.new.valor;
+            if (typeof nuevoHist === 'string') {
+              try { nuevoHist = JSON.parse(nuevoHist); } catch(e) { return; }
+            }
+            if (Array.isArray(nuevoHist)) {
+              HIST_DATA = nuevoHist;
+              try { if(typeof updateAllStats==='function') updateAllStats(); } catch(e){}
+              try { if(typeof filterRetHist==='function') filterRetHist(); } catch(e){}
+              try { if(typeof toast==='function') toast('Retiro detectado del broker','Bot','green'); } catch(e){}
+            }
+          }
+        } catch(e){ console.warn('[TB] Error en realtime hist_data:', e); }
+      })
+      .subscribe();
+    _rtChannels.push(chHistData);
+  } catch(e) { console.warn('[TB] Realtime hist_data no disponible:', e); }
 }
 
 // ─── DETECTAR TIPO DE LINK QUE VIENE DEL EMAIL ────────────────
@@ -1650,8 +1673,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v06 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v06';
+console.log('%c[TB] TRADINGBEIS v07 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v07';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -9082,6 +9105,25 @@ function botStartRealtime() {
 // ══════════════════════════════════════════════════════════════
 function tbGetUserTzOffset() {
   try {
+    // v07: usar _userTimezone (zona IANA configurada en cfg-timezone)
+    // y obtener el offset real (incluye DST si aplica) para la fecha actual.
+    if (typeof _userTimezone !== 'undefined' && _userTimezone && _userTimezone !== 'local') {
+      var d = new Date();
+      // Hora local del navegador
+      var localStr = d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+'T'+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+      // Hora "como se ve" en la zona del usuario, partiendo del mismo instante UTC
+      var parts = new Intl.DateTimeFormat('en-US',{timeZone:_userTimezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d);
+      var p = {};
+      parts.forEach(function(x){ p[x.type] = x.value; });
+      var tzStr = p.year+'-'+p.month+'-'+p.day+'T'+p.hour+':'+p.minute+':'+p.second;
+      // Diferencia en minutos entre la zona del usuario y UTC
+      // tzStr representa la hora "vista" en la zona del usuario.
+      // Para obtener su offset respecto a UTC: diff = tzAsIfUTC - realUTC
+      var tzAsIfUTC = new Date(tzStr + 'Z');
+      var realUTC = new Date(d.toISOString());
+      return Math.round((tzAsIfUTC.getTime() - realUTC.getTime()) / 60000);
+    }
+    // Fallback al sistema viejo si no hay _userTimezone
     var tz = (TB_USER && TB_USER.meta && TB_USER.meta.zona_horaria) || 'UTC-5';
     var m = tz.match(/UTC([+-])(\d{1,2})/);
     if (!m) return 0;
@@ -9744,7 +9786,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v06</div>
+<div class="tb-version-tag" id="tb-version-tag">v07</div>
 
 </body>
 </html>
