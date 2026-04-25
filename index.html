@@ -1,26 +1,26 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v04 - CORRECCIONES Ronda 3 (Pestaña Ejecución)
+TRADINGBEIS v05 - CORRECCIONES Ronda 4 (Pestaña Ejecución)
 Build: 2026-04-24
-Cambios desde v03:
-  PUNTO 1: Version visible en todas las paginas
-           → Titulo de pestana: TRADINGBEIS v04
-           → Esquina inferior derecha: "v04" en letras opacas fijas
-           → console.log('[TB] TRADINGBEIS v04 cargado') al iniciar
-  PUNTO 2: Toggle ON/OFF persistente entre paginas y sesiones
-           → Arreglado .single() -> .maybeSingle() en sbCargarDatos
-           → Elimina error 406 que impedia cargar estado del toggle
-  PUNTO 3: Paneles de Ejecucion recuerdan Simbolo/Lotaje/SL/TP
-           → Mismo fix de .maybeSingle() arregla la carga de config
-  PUNTO 4: Panel Live muestra UNA tarjeta por cada operacion abierta
-           → Ampliada ventana de filtro de 60s a 5 minutos
-           → Query inicial tolera filas algo mas antiguas
-           → Bot publica en paralelo con Task.WhenAll (requiere Bot v04)
-  PUNTO 5: Ejecuta 3+ ordenes seguidas sin quedarse en "esperando"
-           → Declaracion de 'ch' antes del setTimeout (race condition)
-           → Bot v04: watchdog de 30s que resetea _procesandoOrden
-           → Bot v04: si UpdateOrdenEstadoSync falla NO marca como procesada
-  IMPORTANTE: Requiere cBot v04 con fixes correspondientes
+Cambios desde v04:
+  PUNTO 2 (ahora si de verdad): Toggle ON/OFF persistente
+           → Bug real: ejecLoadActive leia res.data.valor.active
+             pero sbCargarDatos ya devuelve el valor PARSEADO en res.data
+             asi que res.data.valor siempre era undefined
+             → Nunca cargaba el toggle guardado, siempre quedaba OFF
+           → Fix: leer res.data.active directamente
+  PUNTO 3 (ahora si de verdad): Paneles recuerdan Simbolo/Lotaje/SL/TP
+           → Bug real: mismo patron en ejecLoadConfig
+             Leia res.data.valor cuando tenia que leer res.data
+           → Fix: leer res.data directamente como objeto de config
+
+NOTA: el bot sigue siendo v04, los 3 fixes del lado bot ya funcionan.
+
+---- Historico ----
+v04: titulo, esquinita opaca, console.log, .maybeSingle(),
+     ventana Panel Live 5min, race condition ch, Bot: WhenAll + watchdog
+v03: validacion UUID, cola ordenes bot, try/catch OnTimer
+v01: base inicial con 6 paneles Ejecucion y Panel Live
 ═══════════════════════════════════════════════════════════════════════
 -->
 <!-- 
@@ -42,7 +42,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v04</title>
+<title>TRADINGBEIS v05</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1643,9 +1643,9 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 
 </style>
 <script>
-// v04: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v04 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v04';
+// v05: marca de version para diagnostico en consola
+console.log('%c[TB] TRADINGBEIS v05 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v05';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -9073,8 +9073,11 @@ function ejecLoadActive() {
   if(!c || !c.ncuenta) return;
   var key = 'ejec_active_' + String(c.ncuenta);
   sbCargarDatos(TB_USER.id, key).then(function(res){
-    if(res && res.data && res.data.valor !== undefined){
-      _ejecActive = !!res.data.valor.active;
+    // v05 FIX: sbCargarDatos ya devuelve el valor PARSEADO en res.data
+    //         Antes el codigo leia res.data.valor.active (inexistente)
+    //         Ahora lee res.data.active directamente
+    if(res && res.data && res.data.active !== undefined){
+      _ejecActive = !!res.data.active;
     } else {
       _ejecActive = false;
     }
@@ -9115,8 +9118,11 @@ function ejecLoadConfig() {
   try {
     var key = 'ejec_cfg_' + String(c.ncuenta);
     sbCargarDatos(TB_USER.id, key).then(function(res){
-      if(res && res.data && res.data.valor && typeof res.data.valor === 'object'){
-        _ejecConfig = res.data.valor || {};
+      // v05 FIX: sbCargarDatos ya devuelve el valor PARSEADO en res.data
+      //         Antes el codigo leia res.data.valor (inexistente)
+      //         Ahora lee res.data directamente como objeto de config
+      if(res && res.data && typeof res.data === 'object'){
+        _ejecConfig = res.data || {};
       }
       ejecRender();  // Siempre renderiza, haya o no config
     }).catch(function(){ ejecRender(); });
@@ -9670,8 +9676,8 @@ function botImportarHistorico() {
 
 </script>
 
-<!-- v04: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v04</div>
+<!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
+<div class="tb-version-tag" id="tb-version-tag">v05</div>
 
 </body>
 </html>
