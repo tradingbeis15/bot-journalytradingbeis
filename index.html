@@ -46,7 +46,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v26</title>
+<title>TRADINGBEIS v27</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1698,8 +1698,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v26 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v26';
+console.log('%c[TB] TRADINGBEIS v27 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v27';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -4494,19 +4494,20 @@ function tbConstruirNotificaciones(){
     }catch(e){ console.warn('[TB] noti ops_abiertas:', e); }
   }
 
-  // 6) Tiempo minimo - v26: avisa 30s DESPUES de cumplido
+  // 6) Tiempo minimo - v27: avisa 30s DESPUES de cumplido (con debug)
   if(f.tiempo_minimo){
     try{
       var tminOn = (ge('rtog-tmin')||{classList:{contains:function(){return false;}}}).classList.contains('on');
       var tminSeg = parseInt((ge('br-tmin-seg')||{}).value)||0;
       if(tminOn && tminSeg>0 && typeof _posLiveData !== 'undefined' && _posLiveData){
-        Object.keys(_posLiveData).forEach(function(k){
+        var keysT = Object.keys(_posLiveData);
+        keysT.forEach(function(k){
           var p = _posLiveData[k];
           if(!p) return;
           var apertura = new Date(p.abierta_at || p.timestamp_apertura || p.created_at || 0);
           if(isNaN(apertura.getTime())) return;
-          var transcurrido = (tzNow() - apertura) / 1000;
-          // Aviso solo durante 30s DESPUES de cumplir el tiempo minimo
+          var transcurrido = (Date.now() - apertura.getTime()) / 1000;
+          // Aviso durante 30s DESPUES de cumplir el tiempo minimo
           if(transcurrido >= tminSeg && transcurrido <= tminSeg + 30){
             var cid = (p.cuenta_id !== undefined && p.cuenta_id !== null) ? String(p.cuenta_id) : '';
             var lbl = cid ? ('#'+cid) : '';
@@ -4523,7 +4524,7 @@ function tbConstruirNotificaciones(){
           }
         });
       }
-    }catch(e){ console.warn('[TB] noti tiempo_minimo:', e); }
+    }catch(e){ console.warn('[TB] noti tiempo_minimo error:', e); }
   }
 
   // 7) Perdida diaria al 80% del limite (v26: solo si regla activa)
@@ -10397,7 +10398,13 @@ function posLiveCardHtml(r) {
   // Duración
   h += '<div class="pos-live-section">';
   h += '<div class="pos-live-section-t">⏱ DURACIÓN</div>';
-  h += '<div class="pos-live-row"><span>Tiempo abierta:</span><span class="pos-live-duracion" id="dur-' + r.trade_id + '">' + posLiveFormatDuracion(r.duracion_seg||0) + '</span></div>';
+  // v27: calcular duracion siempre desde abierta_at para que coincida con el cronometro
+  var _duracionInicial = r.duracion_seg || 0;
+  if(r.abierta_at){
+    var _ms = Date.parse(r.abierta_at);
+    if(!isNaN(_ms)) _duracionInicial = Math.max(0, Math.floor((Date.now() - _ms) / 1000));
+  }
+  h += '<div class="pos-live-row"><span>Tiempo abierta:</span><span class="pos-live-duracion" id="dur-' + r.trade_id + '">' + posLiveFormatDuracion(_duracionInicial) + '</span></div>';
   if(cumpleTMin){
     h += '<div class="pos-live-row"><span>Tiempo mínimo:</span><b class="green">✓ Cumplido</b></div>';
   } else {
@@ -10598,7 +10605,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v26</div>
+<div class="tb-version-tag" id="tb-version-tag">v27</div>
 
 </body>
 </html>
