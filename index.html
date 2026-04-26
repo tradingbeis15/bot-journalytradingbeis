@@ -1,13 +1,17 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v15 - delRetiro persiste y limpia fechas
+TRADINGBEIS v11 - Eliminar cuenta persiste + Barra progreso visible
 Build: 2026-04-25
-Cambios desde v14:
-  PUNTO 1: delRetiro persiste en Supabase. Antes borraba HIST_DATA solo
-           en memoria, al cerrar y abrir sesion el retiro volvia.
-  PUNTO 2: delRetiro limpia tambien las fechas en RET_DATA/AC[CID].R
-           (fr, fa, monto, rej). Antes el historial se borraba pero la
-           fecha programada quedaba en el calendario.
+Cambios desde v09:
+  PUNTO 1: Mostrar Saldo Actual (Capital - inicial - + P&L - Retiros).
+           - Tarjeta de cuenta en "Cuentas Live" (y demas listados de cuentas).
+           - Dashboard: tarjeta nueva con Saldo Actual.
+           - Operaciones: tarjeta o badge con Saldo Actual.
+           - Formula: cuenta.tamano + sum(t[7]) - sum(retiros_aprobados.monto).
+  PUNTO 2: Bot renombrado v08 -> v10 para alinear con HTML.
+           (Sin cambios funcionales en el bot.)
+
+NOTA: Bot v10 incluido en este release. Recompilar cBot.
 
 ---- Historico ----
 v09: importar historico (boton Operaciones), sync retiros broker
@@ -40,7 +44,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v15</title>
+<title>TRADINGBEIS v13</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1670,8 +1674,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v15 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v15';
+console.log('%c[TB] TRADINGBEIS v13 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v13';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -4301,18 +4305,14 @@ function tbActualizarBannerRetiro(){
 
   var hoyList = [], mananaList = [], aprobadoList = [];
 
-  AC.forEach(function(c, idxC){
+  AC.forEach(function(c){
     if(!c || !c.ok) return;
     var cuentaLbl = c.empresa ? (c.empresa+' #'+(c.ncuenta||'')) : ('#'+(c.ncuenta||''));
 
-    // v14: Para la cuenta activa usar RET_DATA (que es el estado en vivo
-    // mientras el usuario edita). Para las demas cuentas usar c.R guardado.
-    var fuenteR = (idxC === CID && typeof RET_DATA !== 'undefined' && RET_DATA) ? RET_DATA : c.R;
-
-    // 1) Programados
-    if(fuenteR){
-      Object.keys(fuenteR).forEach(function(m){
-        var rows = (fuenteR[m] && fuenteR[m].rows) || [];
+    // 1) Programados (estructura c.R por mes con rows)
+    if(c.R){
+      Object.keys(c.R).forEach(function(m){
+        var rows = (c.R[m] && c.R[m].rows) || [];
         rows.forEach(function(r){
           if(!r || r.rej) return;
           // Programado pendiente: tiene fr (fecha programada) pero no fa (fecha aprobada)
@@ -4337,11 +4337,9 @@ function tbActualizarBannerRetiro(){
       });
     }
 
-    // 2) Tambien revisar c.H (hist_data) para retiros aprobados recientes.
-    //    En la cuenta activa el estado en vivo esta en HIST_DATA.
-    var fuenteH = (idxC === CID && typeof HIST_DATA !== 'undefined' && HIST_DATA) ? HIST_DATA : c.H;
-    if(fuenteH && Array.isArray(fuenteH)){
-      fuenteH.forEach(function(h){
+    // 2) Tambien revisar c.H (hist_data) para retiros aprobados recientes
+    if(c.H && Array.isArray(c.H)){
+      c.H.forEach(function(h){
         if(!h || h.rej) return;
         if(h.fecha){
           try{
@@ -4443,8 +4441,6 @@ function saveDivision(){
 }
 
 function updateAllStats(){
-  // v14: actualizar banner global de retiros en tiempo real
-  try { if(typeof tbActualizarBannerRetiro==='function') tbActualizarBannerRetiro(); } catch(e){}
   var total=TRADES.length;
   var ganadas=TRADES.filter(function(t){return t[11]==='GANADA';}).length;
   var perdidas=TRADES.filter(function(t){return t[11]==='PERDIDA';}).length;
@@ -4864,48 +4860,9 @@ function editRetiro(idx){
 }
 function delRetiro(idx){
   if(!confirm('Eliminar este retiro del historial?'))return;
-  var r = HIST_DATA[idx];
-
-  // v15: si el retiro tiene key "mi_ri" -> tambien limpiar fr/fa/monto en RET_DATA
-  try {
-    if(r && r.key){
-      var parts = r.key.split('_');
-      var mi = parts[0];
-      var ri = parseInt(parts[1]);
-      if(typeof RET_DATA !== 'undefined' && RET_DATA && RET_DATA[mi] && RET_DATA[mi].rows && RET_DATA[mi].rows[ri]){
-        RET_DATA[mi].rows[ri].fr = '';
-        RET_DATA[mi].rows[ri].fa = '';
-        RET_DATA[mi].rows[ri].monto = '';
-        RET_DATA[mi].rows[ri].rej = false;
-      }
-      // Tambien limpiar en la cuenta guardada
-      if(typeof AC !== 'undefined' && AC && AC[CID]){
-        if(AC[CID].R && AC[CID].R[mi] && AC[CID].R[mi].rows && AC[CID].R[mi].rows[ri]){
-          AC[CID].R[mi].rows[ri].fr = '';
-          AC[CID].R[mi].rows[ri].fa = '';
-          AC[CID].R[mi].rows[ri].monto = '';
-          AC[CID].R[mi].rows[ri].rej = false;
-        }
-      }
-    }
-  } catch(e){ console.warn('[TB] Error limpiando fechas del retiro:', e); }
-
   HIST_DATA.splice(idx,1);
   filterRetHist();
   updateAllStats();
-
-  // v15: persistir cambios en Supabase para que NO vuelva al reabrir
-  try {
-    if(typeof TB_USER!=='undefined' && TB_USER && TB_USER.id && typeof sbGuardarDatos==='function'){
-      sbGuardarDatos(TB_USER.id,'hist_data',HIST_DATA);
-      sbGuardarDatos(TB_USER.id,'AC',AC);
-    }
-  } catch(e){ console.warn('[TB] Error persistiendo retiro eliminado:', e); }
-
-  // Refrescar calendario y proximo retiro
-  try { if(typeof buildRetMes==='function') buildRetMes(); } catch(e){}
-  try { if(typeof calcDash==='function') calcDash(); } catch(e){}
-
   toast('Retiro eliminado','Eliminado','red');
 }
 
@@ -10268,7 +10225,7 @@ function botImportarRetiros() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v15</div>
+<div class="tb-version-tag" id="tb-version-tag">v13</div>
 
 </body>
 </html>
