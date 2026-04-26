@@ -46,7 +46,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v27</title>
+<title>TRADINGBEIS v28</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1698,8 +1698,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v27 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v27';
+console.log('%c[TB] TRADINGBEIS v28 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v28';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -4372,11 +4372,11 @@ var TB_NOTI_LAST_ROTATE = 0;
 var TB_NOTI_FLAGS = null; // se carga de cfg
 
 function tbCargarFlagsNoti(){
-  if(TB_NOTI_FLAGS) return TB_NOTI_FLAGS;
-  // v24: solo flags activas, eliminadas: proxima_noticia, ultima_op_max,
-  // sesion_termina, drawdown, sl_pendiente, bot_desconectado,
-  // sin_operar_hoy, racha
-  TB_NOTI_FLAGS = {
+  // v28: defaults SIEMPRE como base. Si hay datos guardados, sobreescribimos
+  // con esos valores. Pero los flags NUEVOS que no esten en el guardado
+  // se quedan con su default (true). Asi nunca quedan undefined al
+  // agregar flags entre versiones.
+  var defaults = {
     proximo_retiro:true, retiro_aprobado:true,
     ops_abiertas:true, tiempo_minimo:true,
     perdida_cerca:true, ganancia_alcanzada:true,
@@ -4384,9 +4384,25 @@ function tbCargarFlagsNoti(){
     dias_sin_operar_10:true,
     ops_dia:true, horario_operacional:true
   };
+  if(TB_NOTI_FLAGS){
+    // ya inicializado en esta sesion - asegurar todos los keys
+    Object.keys(defaults).forEach(function(k){
+      if(typeof TB_NOTI_FLAGS[k] === 'undefined') TB_NOTI_FLAGS[k] = defaults[k];
+    });
+    return TB_NOTI_FLAGS;
+  }
+  TB_NOTI_FLAGS = {};
+  Object.keys(defaults).forEach(function(k){ TB_NOTI_FLAGS[k] = defaults[k]; });
   try{
     var s = localStorage.getItem('tb_noti_flags');
-    if(s){ var o=JSON.parse(s); Object.keys(o).forEach(function(k){ if(TB_NOTI_FLAGS.hasOwnProperty(k)) TB_NOTI_FLAGS[k]=!!o[k]; }); }
+    if(s){
+      var o = JSON.parse(s);
+      // Solo aplicar valores guardados sobre keys conocidos. Si el guardado
+      // no tiene un key nuevo, queda en su default (true).
+      Object.keys(defaults).forEach(function(k){
+        if(o.hasOwnProperty(k)) TB_NOTI_FLAGS[k] = !!o[k];
+      });
+    }
   }catch(e){}
   return TB_NOTI_FLAGS;
 }
@@ -10605,7 +10621,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v27</div>
+<div class="tb-version-tag" id="tb-version-tag">v28</div>
 
 </body>
 </html>
