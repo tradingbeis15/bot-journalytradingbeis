@@ -1,26 +1,34 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v08 - Hora centralizada + Fix sincronizacion multi-cuenta
+TRADINGBEIS v09 - Importacion historica + sync retiros del broker
 Build: 2026-04-25
-Cambios desde v07:
-  PUNTO 1: Convertidor de hora CENTRALIZADO.
-           - Funciones unicas: tbHora(), tbFechaHora(), tbFechaHoy(),
-             tbFechaHoraDesdeUTC(utc), tbHoraDesdeUTC(utc).
-           - Reemplaza puntos donde se generaba hora con
-             new Date()/getHours()/toISOString().
-           - Lee la zona horaria de _userTimezone (cfg-timezone).
-           - Si no hay zona configurada usa local del navegador.
-  PUNTO 2: Fix sincronizacion con cBot (boton "Sincronizar").
-           - cuenta_id se compara como String en ambos lados (antes a veces
-             el bot grababa como int y el HTML como string -> no matcheaba).
-           - Paginacion automatica (Supabase corta en 1000 filas por defecto).
-           - Comparacion robusta de trade_id (siempre como string).
-           - Log claro en consola con cuantos trades se importaron,
-             cuantos eran duplicados y cuantos llegaron del servidor.
+Cambios desde v08:
+  PUNTO 1: Quitar sync automatico en loop.
+           - botInit ya NO llama botSync(true) automaticamente.
+           - El sync es solo manual via botones.
+  PUNTO 2: Boton "Importar historico completo" (Operaciones).
+           - Pide al bot leer History de cTrader (todos los trades cerrados)
+             y grabarlos en Supabase si no estan.
+           - Barra de progreso en vivo via realtime.
+           - Para uso primera vez en una cuenta.
+  PUNTO 3: Boton "Sincronizar" (Operaciones).
+           - Igual que antes pero ahora tambien pide al bot revisar el
+             History recientemente, no solo lee Supabase.
+           - Para uso cuando el bot estuvo apagado un rato.
+  PUNTO 4: Boton "Sincronizar retiros del broker" (Retiros).
+           - Pide al bot leer History.Transactions y grabar las
+             retiradas que falten en hist_data.
+           - Mismo formato que retiro manual aprobado, ajusta balances.
+  PUNTO 5: Sistema de comandos bot via datos_app.
+           - HTML escribe en datos_app clave="bot_cmd_<ncuenta>" con accion.
+           - Bot polea cada tick y ejecuta.
+           - Bot reporta progreso en clave="bot_progress_<ncuenta>".
+           - HTML escucha realtime para actualizar la barra.
 
-NOTA: Bot v07 sigue siendo el mismo, no requiere recompilar.
+NOTA: Bot v08 incluido en este release. Recompilar cBot.
 
 ---- Historico ----
+v08: hora centralizada (tbHora, tbFechaHora, etc), botSync con paginacion
 v07: tbGetUserTzOffset lee _userTimezone, retiros automaticos del bot
 v06: zona horaria global, TP automatico bot, persistencia timezone
 v05: ejecLoadActive leia res.data.active, ejecLoadConfig leia res.data
@@ -49,7 +57,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v08</title>
+<title>TRADINGBEIS v09</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1679,8 +1687,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v08 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v08';
+console.log('%c[TB] TRADINGBEIS v09 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v09';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -2721,7 +2729,12 @@ function openModal(view){
 </div>
 
 <div class="page" id="page-retiros">
-  <div class="ph"><div><h2>💰 Retiros</h2><div class="ph-sub"><span id="ph-sub-retiros">--</span> · Control de retiros</div></div></div>
+  <div class="ph">
+    <div><h2>💰 Retiros</h2><div class="ph-sub"><span id="ph-sub-retiros">--</span> · Control de retiros</div></div>
+    <div style="margin-left:auto;">
+      <button class="btn-o btn-sm" id="btn-sync-retiros-broker" onclick="botImportarRetiros()" title="Pide al bot que sincronice retiros del broker">🔄 Sincronizar retiros del broker</button>
+    </div>
+  </div>
   <div class="ret-header">
     <div class="ret-hcard c1"><div class="ret-hlbl">Disponible Retiro</div><div class="ret-hval c1" id="ret-disponible">$0.00</div><div class="ret-hsub" id="ret-division-lbl">Ganancias - Retiros</div></div>
     <div class="ret-hcard c1"><div class="ret-hlbl">Mi Parte (Disp.)</div><div class="ret-hval c1" id="ret-disp-miparte">$0.00</div><div class="ret-hsub" id="ret-disp-miparte-sub">90% de disponible</div></div>
@@ -9048,8 +9061,7 @@ function botInit() {
   ge('bot-ncuenta').value = (c && c.ncuenta) ? c.ncuenta : '--';
   // Cargar estado de toggles y reglas
   botLoadState();
-  // Sincronizar operaciones del bot al entrar
-  botSync(true);
+  // v09: NO sincronizar automaticamente; solo cuando el usuario lo pida
 }
 
 // ── Toggle funciones ON/OFF ──────────────────────────────────
@@ -9268,7 +9280,7 @@ function botStartRealtime() {
     window.nav = function(name, el){
       _origNav(name, el);
       if(name === 'bot') setTimeout(botInit, 80);
-      if(name === 'operaciones' && typeof botSync === 'function') setTimeout(function(){ botSync(true); }, 100);
+      // v09: ya NO se sincroniza al entrar a operaciones, solo manual
     };
   }
   var att=0; var iv=setInterval(function(){
@@ -9925,6 +9937,61 @@ function botImportarHistorico() {
   });
 }
 
+// v09: Importar retiros del broker
+function botImportarRetiros() {
+  if(!TB_USER || !TB_USER.id || !AC || !AC[CID]){ toast('No hay cuenta activa','Retiros','red'); return; }
+  var c = AC[CID];
+  if(!c.ncuenta){ toast('Esta cuenta no tiene número configurado','Retiros','red'); return; }
+
+  if(!confirm('¿Pedir al bot que sincronice los retiros de la cuenta #'+c.ncuenta+'?\n\nIMPORTANTE: cTrader no expone los retiros historicos via API.\nSolo los retiros NUEVOS (mientras el bot esta corriendo) se detectan automaticamente.\n\nSi el bot esta apagado y hiciste retiros, no se podran sincronizar desde aqui.')) return;
+
+  var btn = ge('btn-sync-retiros-broker');
+  if(btn){ btn.disabled = true; btn.innerHTML = '⏳ Procesando...'; }
+
+  var orden = {
+    user_id: TB_USER.id, cuenta_id: String(c.ncuenta),
+    simbolo: 'IMPORT_RETIROS', tipo: 'IMPORT_RETIROS',
+    lotes: 0, sl_pips: 0, tp_pips: 0, estado: 'pendiente'
+  };
+
+  sbClient.from('ordenes_pendientes').insert(orden).select().single().then(function(res){
+    if(res.error){
+      if(btn){btn.disabled=false;btn.innerHTML='🔄 Sincronizar retiros del broker';}
+      toast('Error: '+res.error.message,'Retiros','red');
+      return;
+    }
+    var ordenId = res.data.id;
+    toast('Solicitud enviada al bot...','Retiros','gold');
+
+    var timeoutId = setTimeout(function(){
+      if(btn){btn.disabled=false;btn.innerHTML='🔄 Sincronizar retiros del broker';}
+      toast('Tiempo agotado - el bot no respondió','Retiros','red');
+      try{sbClient.removeChannel(channel);}catch(e){}
+    }, 60000);
+
+    var channel = sbClient.channel('retiros_'+ordenId)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'ordenes_pendientes',
+        filter: 'id=eq.'+ordenId
+      }, function(payload){
+        var row = payload.new; if(!row) return;
+        if(row.estado === 'ejecutada'){
+          clearTimeout(timeoutId);
+          if(btn){btn.disabled=false;btn.innerHTML='🔄 Sincronizar retiros del broker';}
+          alert('Resultado:\n\n'+(row.motivo_rechazo||'Sin detalles'));
+          toast('Respuesta del bot recibida','Retiros','green');
+          try{sbClient.removeChannel(channel);}catch(e){}
+        } else if(row.estado === 'rechazada' || row.estado === 'error'){
+          clearTimeout(timeoutId);
+          if(btn){btn.disabled=false;btn.innerHTML='🔄 Sincronizar retiros del broker';}
+          toast('❌ '+(row.motivo_rechazo||'Error'),'Retiros','red');
+          try{sbClient.removeChannel(channel);}catch(e){}
+        }
+      })
+      .subscribe();
+  });
+}
+
 // ══════════════════════════════════════════════════════════════
 // 5. HOOK con navegación
 // ══════════════════════════════════════════════════════════════
@@ -9980,7 +10047,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v08</div>
+<div class="tb-version-tag" id="tb-version-tag">v09</div>
 
 </body>
 </html>
