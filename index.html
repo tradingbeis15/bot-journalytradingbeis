@@ -1,29 +1,20 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v18 - Barra de notificaciones (15 tipos rotando)
+TRADINGBEIS v19 - Reglas con zona horaria del usuario
 Build: 2026-04-25
-Cambios desde v17:
-  PUNTO 1: Reemplazar banner viejo de retiros por barra de notificaciones
-           tipo ticker. Visible en TODAS las paginas. Rota cada 3 segundos.
-  PUNTO 2: 15 tipos de notificaciones, todas activables/desactivables:
-           1. Proximo retiro (dia anterior y dia del)
-           2. Felicidades retiro aprobado (24h despues)
-           3. Proxima noticia (franjas N1/N2/N3, <2h)
-           4. Ultima operacion antes del maximo diario
-           5. Operaciones abiertas (cantidad)
-           6. Operacion cerca de tiempo minimo
-           7. Perdida diaria al 80% del limite
-           8. Ganancia diaria alcanzada
-           9. Sesion por terminar (15min antes)
-          10. Drawdown semanal mayor al 5%
-          11. Operacion abierta sin SL (>60s)
-          12. Bot desconectado (>30s)
-          13. Operando dentro de franja de noticia
-          14. Sin operar hoy (felicitacion despues de las 18h)
-          15. Racha (5 ganadas o 3 perdidas seguidas)
-  PUNTO 3: Seccion colapsable "Notificaciones" en Configuracion
-           con toggles individuales para cada tipo.
-           Persistencia en localStorage + Supabase (datos_app.noti_flags).
+Cambios desde v18:
+  PUNTO 1: Bot v19 ahora tiene parametro "Offset Horario Usuario".
+           Antes el bot usaba UTC para todas las reglas, lo que hacia
+           que operaciones de "ayer" (UTC) contaran como "hoy" en zonas
+           atrasadas como UTC-4 (Caracas).
+  PUNTO 2: Reglas en el bot que ahora respetan la zona del usuario:
+           - Max operaciones diarias
+           - Perdida diaria limite
+           - Ganancia diaria limite
+           - Horario operacional desde/hasta
+           - Franjas de noticias N1/N2/N3
+  PUNTO 3: Aviso visible en la pestaña Bot indicando como configurar
+           el nuevo parametro Offset Horario Usuario.
 
 ---- Historico ----
 v09: importar historico (boton Operaciones), sync retiros broker
@@ -56,7 +47,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v18</title>
+<title>TRADINGBEIS v19</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1708,8 +1699,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v18 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v18';
+console.log('%c[TB] TRADINGBEIS v19 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v19';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -3279,7 +3270,8 @@ function openModal(view){
             1. Abre cTrader → Automate → Abre el cBot <b>TRADINGBEIS Bot</b><br>
             2. En los parámetros del bot pega: <b>User ID</b>, <b>Cuenta</b>, <b>URL</b> y <b>Key</b><br>
             3. Ejecuta el bot en cada gráfico que quieras monitorear<br>
-            4. Las operaciones cerradas aparecerán aquí automáticamente
+            4. Las operaciones cerradas aparecerán aquí automáticamente<br>
+            5. <b style="color:var(--gold);">[v19]</b> En el bot ajusta <b>"Offset Horario Usuario"</b> según tu zona (UTC-4 = -4, UTC-3 = -3, etc.). Default 0 (UTC). Esto hace que las reglas (max ops, perdida diaria, franjas de noticias) trabajen con tu día/hora local.
           </div>
         </div>
         <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -10584,7 +10576,7 @@ function botImportarRetiros() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v18</div>
+<div class="tb-version-tag" id="tb-version-tag">v19</div>
 
 </body>
 </html>
