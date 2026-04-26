@@ -1,6 +1,6 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v10 - Saldo Actual + Bot v09 alineado
+TRADINGBEIS v11 - Eliminar cuenta persiste + Barra progreso visible
 Build: 2026-04-25
 Cambios desde v09:
   PUNTO 1: Mostrar Saldo Actual (Capital - inicial - + P&L - Retiros).
@@ -44,7 +44,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v10</title>
+<title>TRADINGBEIS v11</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1674,8 +1674,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v10 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v10';
+console.log('%c[TB] TRADINGBEIS v11 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v11';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -3233,12 +3233,20 @@ function openModal(view){
             4. Las operaciones cerradas aparecerán aquí automáticamente
           </div>
         </div>
-        <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+        <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <div style="font-size:11px;color:var(--w3);">Estado de conexión:</div>
           <div id="bot-estado-reg" style="font-size:11px;font-weight:700;color:var(--w3);">⚫ Sin actividad</div>
           <button class="btn-o btn-sm" onclick="botSync(false)" style="margin-left:12px;">🔄 Sincronizar ahora</button>
           <button class="btn-o btn-sm" id="btn-importar-hist" onclick="botImportarHistorico()" title="Lee todo el historial de cTrader y graba lo que falte">📥 Importar Histórico</button>
           <div style="font-size:10px;color:var(--w3);margin-left:auto;">Última sincronización: <span id="bot-ultima-sync">--</span></div>
+        </div>
+        <!-- v11: Barra de progreso en linea propia para que SIEMPRE se vea -->
+        <div id="hist-progress-wrap" style="display:none;align-items:center;gap:10px;margin-top:10px;padding:8px 12px;background:var(--border2);border:1px solid var(--gold);border-radius:8px;">
+          <span style="font-size:11px;font-weight:700;color:var(--gold);">📥 Importando:</span>
+          <div style="flex:1;height:18px;background:rgba(0,0,0,.3);border-radius:9px;overflow:hidden;border:1px solid var(--border);">
+            <div id="hist-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--gold),var(--green));transition:width .25s;"></div>
+          </div>
+          <span id="hist-progress-txt" style="font-size:11px;font-weight:700;color:var(--w);min-width:120px;text-align:right;">Iniciando...</span>
         </div>
       </div>
     </div>
@@ -5934,6 +5942,12 @@ function elimCuenta(idx,ev){
   AC[idx]=mkC(c.tipo,c.num);
   if(idx===CID){CID=0;cargarC(0);updTop(AC[0]);}
   renderTipo(c.tipo);
+  // v11: persistir cambio en Supabase para que NO vuelva al reabrir sesion
+  try {
+    if(typeof TB_USER!=='undefined' && TB_USER && TB_USER.id && typeof sbGuardarDatos==='function'){
+      sbGuardarDatos(TB_USER.id,'AC',AC);
+    }
+  } catch(e){ console.warn('[TB] Error guardando AC tras eliminar:',e); }
   if(typeof toast==='function') toast(nom+' eliminada','','red');
 }
 
@@ -9903,6 +9917,22 @@ function botImportarHistorico() {
   var btn = ge('btn-importar-hist');
   if(btn){ btn.disabled = true; btn.innerHTML = '⏳ Procesando...'; }
 
+  // v10: mostrar barra de progreso al lado del boton
+  var pwrap = ge('hist-progress-wrap');
+  var pbar  = ge('hist-progress-bar');
+  var ptxt  = ge('hist-progress-txt');
+  if(pwrap){ pwrap.style.display = 'flex'; }
+  if(pbar) { pbar.style.width = '0%'; }
+  if(ptxt) { ptxt.textContent = 'Iniciando...'; }
+
+  function ocultarBarra(){
+    setTimeout(function(){
+      if(pwrap) pwrap.style.display = 'none';
+      if(pbar)  pbar.style.width = '0%';
+      if(ptxt)  ptxt.textContent = '0%';
+    }, 1500);
+  }
+
   var orden = {
     user_id: TB_USER.id, cuenta_id: String(c.ncuenta),
     simbolo: 'IMPORT_HISTORY', tipo: 'IMPORT_HISTORY',
@@ -9913,6 +9943,7 @@ function botImportarHistorico() {
     if(res.error){
       if(btn){btn.disabled=false;btn.innerHTML='📥 Importar Histórico';}
       toast('Error: '+res.error.message,'Importar','red');
+      ocultarBarra();
       return;
     }
     var ordenId = res.data.id;
@@ -9922,7 +9953,8 @@ function botImportarHistorico() {
       if(btn){btn.disabled=false;btn.innerHTML='📥 Importar Histórico';}
       toast('Tiempo agotado - el bot no respondió','Importar','red');
       try{sbClient.removeChannel(channel);}catch(e){}
-    }, 120000);
+      ocultarBarra();
+    }, 300000); // 5 minutos
 
     var channel = sbClient.channel('import_'+ordenId)
       .on('postgres_changes', {
@@ -9930,17 +9962,43 @@ function botImportarHistorico() {
         filter: 'id=eq.'+ordenId
       }, function(payload){
         var row = payload.new; if(!row) return;
+
+        // v10: progreso intermedio - el bot escribe "PROG:45/200" en motivo_rechazo
+        if(row.estado === 'procesando' && row.motivo_rechazo){
+          var m = String(row.motivo_rechazo).match(/^PROG:(\d+)\/(\d+)/);
+          if(m){
+            var hechas = parseInt(m[1])||0;
+            var total  = parseInt(m[2])||0;
+            var pct = total > 0 ? Math.round(hechas/total*100) : 0;
+            if(pbar) pbar.style.width = pct + '%';
+            if(ptxt) ptxt.textContent = hechas + '/' + total + ' ('+pct+'%)';
+            // Reiniciar timeout en cada progreso
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(function(){
+              if(btn){btn.disabled=false;btn.innerHTML='📥 Importar Histórico';}
+              toast('Tiempo agotado - el bot no respondió','Importar','red');
+              try{sbClient.removeChannel(channel);}catch(e){}
+              ocultarBarra();
+            }, 300000);
+          }
+          return;
+        }
+
         if(row.estado === 'ejecutada'){
           clearTimeout(timeoutId);
           if(btn){btn.disabled=false;btn.innerHTML='📥 Importar Histórico';}
+          if(pbar) pbar.style.width = '100%';
+          if(ptxt) ptxt.textContent = '✓ Completado';
           toast('✅ '+(row.motivo_rechazo||'Importación completa'),'Importar','green');
           try{sbClient.removeChannel(channel);}catch(e){}
           if(typeof botSync === 'function') setTimeout(function(){botSync(true);}, 1000);
+          ocultarBarra();
         } else if(row.estado === 'rechazada' || row.estado === 'error'){
           clearTimeout(timeoutId);
           if(btn){btn.disabled=false;btn.innerHTML='📥 Importar Histórico';}
           toast('❌ '+(row.motivo_rechazo||'Error'),'Importar','red');
           try{sbClient.removeChannel(channel);}catch(e){}
+          ocultarBarra();
         }
       })
       .subscribe();
@@ -10057,7 +10115,7 @@ function botImportarRetiros() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v10</div>
+<div class="tb-version-tag" id="tb-version-tag">v11</div>
 
 </body>
 </html>
