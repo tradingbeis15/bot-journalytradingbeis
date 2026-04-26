@@ -1,17 +1,20 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v11 - Eliminar cuenta persiste + Barra progreso visible
+TRADINGBEIS v19 - Reglas con zona horaria del usuario
 Build: 2026-04-25
-Cambios desde v09:
-  PUNTO 1: Mostrar Saldo Actual (Capital - inicial - + P&L - Retiros).
-           - Tarjeta de cuenta en "Cuentas Live" (y demas listados de cuentas).
-           - Dashboard: tarjeta nueva con Saldo Actual.
-           - Operaciones: tarjeta o badge con Saldo Actual.
-           - Formula: cuenta.tamano + sum(t[7]) - sum(retiros_aprobados.monto).
-  PUNTO 2: Bot renombrado v08 -> v10 para alinear con HTML.
-           (Sin cambios funcionales en el bot.)
-
-NOTA: Bot v10 incluido en este release. Recompilar cBot.
+Cambios desde v18:
+  PUNTO 1: Bot v19 ahora tiene parametro "Offset Horario Usuario".
+           Antes el bot usaba UTC para todas las reglas, lo que hacia
+           que operaciones de "ayer" (UTC) contaran como "hoy" en zonas
+           atrasadas como UTC-4 (Caracas).
+  PUNTO 2: Reglas en el bot que ahora respetan la zona del usuario:
+           - Max operaciones diarias
+           - Perdida diaria limite
+           - Ganancia diaria limite
+           - Horario operacional desde/hasta
+           - Franjas de noticias N1/N2/N3
+  PUNTO 3: Aviso visible en la pestaña Bot indicando como configurar
+           el nuevo parametro Offset Horario Usuario.
 
 ---- Historico ----
 v09: importar historico (boton Operaciones), sync retiros broker
@@ -44,7 +47,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v14</title>
+<title>TRADINGBEIS v19</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -497,6 +500,28 @@ async function doAutoLogin(user) {
     try { sbIniciarRealtime(); } catch(e){ console.warn('[TB] Realtime no disponible', e); }
     try { tbRegistrarActividad(TB_USER.id,'user','login','Inicio de sesión'); } catch(e){}
     try { if(typeof loadTimezone==='function') loadTimezone(); } catch(e){} // v06
+    try { // v18: cargar flags noti y sincronizar toggles visuales
+      if(typeof tbCargarFlagsNoti==='function'){
+        var ff = tbCargarFlagsNoti();
+        Object.keys(ff).forEach(function(k){
+          var el = document.getElementById('tb-noti-tog-'+k);
+          if(el){ el.classList.toggle('on', !!ff[k]); }
+        });
+        // Tambien intentar cargar de Supabase si estuviera guardado ahi
+        if(typeof sbCargarDatos==='function' && TB_USER && TB_USER.id){
+          sbCargarDatos(TB_USER.id,'noti_flags').then(function(res){
+            if(res && res.data){
+              TB_NOTI_FLAGS = res.data;
+              try{ localStorage.setItem('tb_noti_flags', JSON.stringify(TB_NOTI_FLAGS)); }catch(e){}
+              Object.keys(TB_NOTI_FLAGS).forEach(function(k){
+                var el2 = document.getElementById('tb-noti-tog-'+k);
+                if(el2){ el2.classList.toggle('on', !!TB_NOTI_FLAGS[k]); }
+              });
+            }
+          }).catch(function(){});
+        }
+      }
+    } catch(e){}
   } catch(e) {
     console.error('[TB] Error en auto-login:', e);
     _autoLoginDone = false;
@@ -1674,8 +1699,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v14 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v14';
+console.log('%c[TB] TRADINGBEIS v19 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v19';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -2193,13 +2218,20 @@ function openModal(view){
       </div>
     </div>
     <div id="toast-wrap"></div>
-    <!-- v13: Banner global de retiros (visible en todas las paginas) -->
-    <div id="ret-banner" style="display:none;padding:10px 20px;text-align:center;font-size:13px;font-weight:700;border-bottom:1px solid var(--border);"></div>
+    <!-- v18: Barra de notificaciones tipo ticker (visible en TODAS las paginas) -->
+    <div id="tb-noti-bar" style="display:none;height:34px;background:linear-gradient(90deg,rgba(212,168,67,.10),rgba(34,197,94,.08),rgba(212,168,67,.10));border-bottom:1px solid var(--border);overflow:hidden;position:relative;">
+      <div id="tb-noti-content" style="display:flex;align-items:center;height:100%;padding:0 16px;font-size:12px;font-weight:600;white-space:nowrap;transition:opacity .35s ease;">
+        <span id="tb-noti-icon" style="margin-right:8px;font-size:14px;"></span>
+        <span id="tb-noti-text"></span>
+      </div>
+      <div style="position:absolute;right:8px;top:0;height:100%;display:flex;align-items:center;gap:4px;">
+        <span id="tb-noti-counter" style="font-size:9px;color:var(--w3);font-weight:700;"></span>
+      </div>
+    </div>
     <style>
-      @keyframes tbRetPulse { 0%,100%{opacity:1;} 50%{opacity:.55;} }
-      #ret-banner.ret-hoy { background:linear-gradient(90deg,rgba(212,168,67,.15),rgba(212,168,67,.30),rgba(212,168,67,.15)); color:var(--gold); animation: tbRetPulse 1.6s ease-in-out infinite; }
-      #ret-banner.ret-mañana { background:rgba(96,165,250,.10); color:var(--blue); }
-      #ret-banner.ret-aprobado { background:rgba(34,197,94,.12); color:var(--green); }
+      @keyframes tbNotiPulse { 0%,100%{opacity:1;} 50%{opacity:.65;} }
+      .tb-noti-pulse { animation: tbNotiPulse 1.6s ease-in-out infinite; }
+      .tb-noti-fade { opacity:0; }
     </style>
     <div class="content">
 
@@ -3238,7 +3270,8 @@ function openModal(view){
             1. Abre cTrader → Automate → Abre el cBot <b>TRADINGBEIS Bot</b><br>
             2. En los parámetros del bot pega: <b>User ID</b>, <b>Cuenta</b>, <b>URL</b> y <b>Key</b><br>
             3. Ejecuta el bot en cada gráfico que quieras monitorear<br>
-            4. Las operaciones cerradas aparecerán aquí automáticamente
+            4. Las operaciones cerradas aparecerán aquí automáticamente<br>
+            5. <b style="color:var(--gold);">[v19]</b> En el bot ajusta <b>"Offset Horario Usuario"</b> según tu zona (UTC-4 = -4, UTC-3 = -3, etc.). Default 0 (UTC). Esto hace que las reglas (max ops, perdida diaria, franjas de noticias) trabajen con tu día/hora local.
           </div>
         </div>
         <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -3562,6 +3595,41 @@ function openModal(view){
         <div style="font-size:20px;font-weight:800;color:var(--gold);font-family:'Consolas','Courier New',monospace;margin-top:4px;" id="cfg-tz-preview">--:--:--</div>
         <div style="font-size:10px;color:var(--w3);margin-top:2px;" id="cfg-tz-date">--</div>
       </div>
+    </div>
+  </div>
+  <!-- v18: Sección colapsable de Notificaciones -->
+  <div style="margin-bottom:17px;">
+    <div onclick="(function(){var c=document.getElementById('cfg-noti-body');var a=document.getElementById('cfg-noti-arrow');if(!c)return;if(c.style.display==='none'||!c.style.display){c.style.display='block';if(a)a.textContent='▼';}else{c.style.display='none';if(a)a.textContent='▶';}})()" style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;user-select:none;">
+      <span id="cfg-noti-arrow" style="font-size:11px;color:var(--gold);">▶</span>
+      <span style="font-weight:700;font-size:13px;color:var(--gold);">🔔 Notificaciones</span>
+      <span style="font-size:10px;color:var(--w3);margin-left:auto;">Activa/desactiva los avisos de la barra superior</span>
+    </div>
+    <div id="cfg-noti-body" style="display:none;padding:14px;background:var(--bg2);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;">
+      <style>
+        .tb-noti-tog{display:inline-block;width:38px;height:20px;background:var(--border2);border-radius:10px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+        .tb-noti-tog::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .2s;}
+        .tb-noti-tog.on{background:var(--green);}
+        .tb-noti-tog.on::after{left:20px;}
+        .tb-noti-row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px dashed var(--border);}
+        .tb-noti-row:last-child{border-bottom:none;}
+        .tb-noti-row .lbl{flex:1;font-size:11px;color:var(--w);}
+        .tb-noti-row .ic{font-size:14px;width:22px;}
+      </style>
+      <div class="tb-noti-row"><span class="ic">💰</span><span class="lbl">Próximo retiro (día anterior y día del retiro)</span><div class="tb-noti-tog on" id="tb-noti-tog-proximo_retiro" onclick="tbToggleNotiFlag('proximo_retiro')"></div></div>
+      <div class="tb-noti-row"><span class="ic">🎉</span><span class="lbl">Felicidades retiro aprobado (24h después)</span><div class="tb-noti-tog on" id="tb-noti-tog-retiro_aprobado" onclick="tbToggleNotiFlag('retiro_aprobado')"></div></div>
+      <div class="tb-noti-row"><span class="ic">📰</span><span class="lbl">Próxima noticia (franjas N1/N2/N3)</span><div class="tb-noti-tog on" id="tb-noti-tog-proxima_noticia" onclick="tbToggleNotiFlag('proxima_noticia')"></div></div>
+      <div class="tb-noti-row"><span class="ic">⚠️</span><span class="lbl">Última operación disponible (antes del máximo diario)</span><div class="tb-noti-tog on" id="tb-noti-tog-ultima_op_max" onclick="tbToggleNotiFlag('ultima_op_max')"></div></div>
+      <div class="tb-noti-row"><span class="ic">📊</span><span class="lbl">Cantidad de operaciones abiertas</span><div class="tb-noti-tog on" id="tb-noti-tog-ops_abiertas" onclick="tbToggleNotiFlag('ops_abiertas')"></div></div>
+      <div class="tb-noti-row"><span class="ic">⏰</span><span class="lbl">Operación cerca de cumplir tiempo mínimo</span><div class="tb-noti-tog on" id="tb-noti-tog-tiempo_minimo" onclick="tbToggleNotiFlag('tiempo_minimo')"></div></div>
+      <div class="tb-noti-row"><span class="ic">🚨</span><span class="lbl">Pérdida diaria al 80% del límite</span><div class="tb-noti-tog on" id="tb-noti-tog-perdida_cerca" onclick="tbToggleNotiFlag('perdida_cerca')"></div></div>
+      <div class="tb-noti-row"><span class="ic">🎯</span><span class="lbl">Ganancia diaria alcanzada</span><div class="tb-noti-tog on" id="tb-noti-tog-ganancia_alcanzada" onclick="tbToggleNotiFlag('ganancia_alcanzada')"></div></div>
+      <div class="tb-noti-row"><span class="ic">🕐</span><span class="lbl">Sesión por terminar (15 min antes)</span><div class="tb-noti-tog on" id="tb-noti-tog-sesion_termina" onclick="tbToggleNotiFlag('sesion_termina')"></div></div>
+      <div class="tb-noti-row"><span class="ic">📉</span><span class="lbl">Drawdown semanal mayor al 5%</span><div class="tb-noti-tog on" id="tb-noti-tog-drawdown" onclick="tbToggleNotiFlag('drawdown')"></div></div>
+      <div class="tb-noti-row"><span class="ic">⚠️</span><span class="lbl">Operación abierta sin SL (más de 60s)</span><div class="tb-noti-tog on" id="tb-noti-tog-sl_pendiente" onclick="tbToggleNotiFlag('sl_pendiente')"></div></div>
+      <div class="tb-noti-row"><span class="ic">📡</span><span class="lbl">Bot desconectado por más de 30s</span><div class="tb-noti-tog on" id="tb-noti-tog-bot_desconectado" onclick="tbToggleNotiFlag('bot_desconectado')"></div></div>
+      <div class="tb-noti-row"><span class="ic">📡</span><span class="lbl">Estás dentro de franja de noticia activa</span><div class="tb-noti-tog on" id="tb-noti-tog-dentro_noticia" onclick="tbToggleNotiFlag('dentro_noticia')"></div></div>
+      <div class="tb-noti-row"><span class="ic">🧘</span><span class="lbl">Día sin operar (felicitación al final del día)</span><div class="tb-noti-tog on" id="tb-noti-tog-sin_operar_hoy" onclick="tbToggleNotiFlag('sin_operar_hoy')"></div></div>
+      <div class="tb-noti-row"><span class="ic">🔥</span><span class="lbl">Racha (5 ganadas o 3 perdidas seguidas)</span><div class="tb-noti-tog on" id="tb-noti-tog-racha" onclick="tbToggleNotiFlag('racha')"></div></div>
     </div>
   </div>
   <div style="margin-bottom:17px;">
@@ -4278,115 +4346,351 @@ function setDate(){
     existing.innerHTML='<div style="font-size:10px;font-weight:600;color:var(--w2);">'+dateStr+'</div>'
       +'<div style="font-size:13px;font-weight:700;color:var(--white);font-family:Consolas,monospace;letter-spacing:.04em;">'+timeStr+'</div>';
   });
-  // v13: actualizar banner global de retiros
-  try { tbActualizarBannerRetiro(); } catch(e){}
+  // v18: actualizar barra de notificaciones (reemplaza banner viejo)
+  try { tbActualizarNotificaciones(); } catch(e){}
 }
 
-// v13: Banner global de retiros (visible en todas las paginas).
-// Estados:
-//   - "manana": Hay un retiro programado para mañana
-//   - "hoy": Hay un retiro programado para hoy
-//   - "aprobado": Hay un retiro aprobado en las ultimas 24h
-//   - oculto: ningun caso aplica
-// Si hay varias cuentas con retiros del mismo estado, se muestran juntas.
-function tbActualizarBannerRetiro(){
-  var banner = ge('ret-banner');
-  if(!banner) return;
+// v18: SISTEMA DE NOTIFICACIONES TIPO TICKER
+// ════════════════════════════════════════════════════════════════════
+// Genera lista de notificaciones activas y las rota cada 3 segundos.
+// Cada tipo se puede activar/desactivar en Configuracion -> Notificaciones.
+//
+// Tipos (15):
+//  1. proximo_retiro: dia anterior + dia del retiro
+//  2. retiro_aprobado: 24h despues de aprobado
+//  3. proxima_noticia: cuando falten <2h para una franja N1/N2/N3
+//  4. ultima_op_max: queda 1 operacion para llegar al maximo diario
+//  5. ops_abiertas: cantidad de operaciones abiertas (siempre)
+//  6. tiempo_minimo: operacion abierta cerca de cerrarse antes de tiempo minimo
+//  7. perdida_cerca: pasaste 80% de la perdida diaria limite
+//  8. ganancia_alcanzada: alcanzaste objetivo de ganancia diaria
+//  9. sesion_termina: faltan 15min para cerrar horario configurado
+// 10. drawdown: drawdown semanal/mensual significativo
+// 11. sl_pendiente: operacion abierta sin SL hace tiempo
+// 12. bot_desconectado: el bot no envia hace mas de 30s
+// 13. dentro_noticia: estas operando en zona N1/N2/N3
+// 14. sin_operar_hoy: felicitar dia de descanso
+// 15. racha: racha de N ganadas o perdidas consecutivas
+//
+var TB_NOTI_LIST = [];
+var TB_NOTI_IDX = 0;
+var TB_NOTI_LAST_ROTATE = 0;
+var TB_NOTI_FLAGS = null; // se carga de cfg
+
+function tbCargarFlagsNoti(){
+  if(TB_NOTI_FLAGS) return TB_NOTI_FLAGS;
+  // Defaults: todos activos
+  TB_NOTI_FLAGS = {
+    proximo_retiro:true, retiro_aprobado:true, proxima_noticia:true,
+    ultima_op_max:true, ops_abiertas:true, tiempo_minimo:true,
+    perdida_cerca:true, ganancia_alcanzada:true, sesion_termina:true,
+    drawdown:true, sl_pendiente:true, bot_desconectado:true,
+    dentro_noticia:true, sin_operar_hoy:true, racha:true
+  };
+  try{
+    var s = localStorage.getItem('tb_noti_flags');
+    if(s){ var o=JSON.parse(s); Object.keys(o).forEach(function(k){ TB_NOTI_FLAGS[k]=!!o[k]; }); }
+  }catch(e){}
+  return TB_NOTI_FLAGS;
+}
+function tbGuardarFlagsNoti(){
+  try{ localStorage.setItem('tb_noti_flags', JSON.stringify(TB_NOTI_FLAGS||{})); }catch(e){}
+  try{ if(typeof TB_USER!=='undefined' && TB_USER && TB_USER.id && typeof sbGuardarDatos==='function'){ sbGuardarDatos(TB_USER.id,'noti_flags',TB_NOTI_FLAGS); } }catch(e){}
+}
+function tbToggleNotiFlag(key){
+  tbCargarFlagsNoti();
+  TB_NOTI_FLAGS[key] = !TB_NOTI_FLAGS[key];
+  tbGuardarFlagsNoti();
+  var el = ge('tb-noti-tog-'+key);
+  if(el){ el.classList.toggle('on', TB_NOTI_FLAGS[key]); }
+  tbConstruirNotificaciones();
+}
+
+function tbConstruirNotificaciones(){
+  var f = tbCargarFlagsNoti();
+  var lista = [];
+  var hoy = tzNow(); hoy.setHours(0,0,0,0);
+  var hoyTxt = hoy.getFullYear()+'-'+('0'+(hoy.getMonth()+1)).slice(-2)+'-'+('0'+hoy.getDate()).slice(-2);
+  var manana = new Date(hoy.getTime()+86400000);
+  var mananaTxt = manana.getFullYear()+'-'+('0'+(manana.getMonth()+1)).slice(-2)+'-'+('0'+manana.getDate()).slice(-2);
+  var hace24h = new Date(tzNow().getTime()-86400000);
+
   if(typeof AC === 'undefined' || !AC || !AC.length){
-    banner.style.display = 'none';
+    TB_NOTI_LIST = [];
     return;
   }
-  var hoy = tzNow(); hoy.setHours(0,0,0,0);
-  var manana = new Date(hoy.getTime() + 86400000);
-  var hace24h = new Date(tzNow().getTime() - 86400000);
 
-  var hoyTxt = hoy.getFullYear()+'-'+('0'+(hoy.getMonth()+1)).slice(-2)+'-'+('0'+hoy.getDate()).slice(-2);
-  var mananaTxt = manana.getFullYear()+'-'+('0'+(manana.getMonth()+1)).slice(-2)+'-'+('0'+manana.getDate()).slice(-2);
-
-  var hoyList = [], mananaList = [], aprobadoList = [];
-
-  AC.forEach(function(c, idxC){
-    if(!c || !c.ok) return;
-    var cuentaLbl = c.empresa ? (c.empresa+' #'+(c.ncuenta||'')) : ('#'+(c.ncuenta||''));
-
-    // v14: Para la cuenta activa usar RET_DATA (que es el estado en vivo
-    // mientras el usuario edita). Para las demas cuentas usar c.R guardado.
-    var fuenteR = (idxC === CID && typeof RET_DATA !== 'undefined' && RET_DATA) ? RET_DATA : c.R;
-
-    // 1) Programados
-    if(fuenteR){
+  // 1) Proximo retiro (dia antes y dia del)
+  if(f.proximo_retiro){
+    AC.forEach(function(c, idxC){
+      if(!c||!c.ok) return;
+      var lbl=c.empresa?(c.empresa+' #'+(c.ncuenta||'')):'#'+(c.ncuenta||'');
+      var fuenteR=(idxC===CID&&typeof RET_DATA!=='undefined'&&RET_DATA)?RET_DATA:c.R;
+      if(!fuenteR) return;
       Object.keys(fuenteR).forEach(function(m){
-        var rows = (fuenteR[m] && fuenteR[m].rows) || [];
+        var rows=(fuenteR[m]&&fuenteR[m].rows)||[];
         rows.forEach(function(r){
-          if(!r || r.rej) return;
-          // Programado pendiente: tiene fr (fecha programada) pero no fa (fecha aprobada)
-          if(r.fr && !r.fa){
-            if(r.fr === hoyTxt){
-              hoyList.push({ cuenta:cuentaLbl, monto: r.m||r.monto||0 });
-            } else if(r.fr === mananaTxt){
-              mananaList.push({ cuenta:cuentaLbl, monto: r.m||r.monto||0 });
-            }
-          }
-          // Aprobado en las ultimas 24h: tiene fa (fecha aprobada) reciente
-          if(r.fa){
-            try{
-              var faParts = r.fa.split('-');
-              var faDate = new Date(parseInt(faParts[0]), parseInt(faParts[1])-1, parseInt(faParts[2]));
-              if(faDate >= hace24h){
-                aprobadoList.push({ cuenta:cuentaLbl, monto: r.m||r.monto||0 });
-              }
-            }catch(e){}
-          }
+          if(!r||r.rej||r.fa) return;
+          if(r.fr===hoyTxt) lista.push({icon:'💰',texto:'RETIRO HOY - '+lbl+' - $'+(parseFloat(r.monto)||0).toFixed(2),pulse:true,color:'var(--gold)'});
+          else if(r.fr===mananaTxt) lista.push({icon:'📅',texto:'Retiro mañana - '+lbl+' - $'+(parseFloat(r.monto)||0).toFixed(2),color:'var(--blue)'});
         });
       });
-    }
+    });
+  }
 
-    // 2) Tambien revisar c.H (hist_data) para retiros aprobados recientes.
-    //    En la cuenta activa el estado en vivo esta en HIST_DATA.
-    var fuenteH = (idxC === CID && typeof HIST_DATA !== 'undefined' && HIST_DATA) ? HIST_DATA : c.H;
-    if(fuenteH && Array.isArray(fuenteH)){
+  // 2) Retiro aprobado en ultimas 24h
+  if(f.retiro_aprobado){
+    AC.forEach(function(c, idxC){
+      if(!c||!c.ok) return;
+      var lbl=c.empresa?(c.empresa+' #'+(c.ncuenta||'')):'#'+(c.ncuenta||'');
+      var fuenteH=(idxC===CID&&typeof HIST_DATA!=='undefined'&&HIST_DATA)?HIST_DATA:c.H;
+      if(!fuenteH||!Array.isArray(fuenteH)) return;
       fuenteH.forEach(function(h){
-        if(!h || h.rej) return;
-        if(h.fecha){
-          try{
-            var hParts = h.fecha.split('-');
-            var hDate = new Date(parseInt(hParts[0]), parseInt(hParts[1])-1, parseInt(hParts[2]));
-            if(hDate >= hace24h && hDate <= hoy){
-              aprobadoList.push({ cuenta:cuentaLbl, monto: h.monto||0 });
-            }
-          }catch(e){}
+        if(!h||h.rej||!h.fecha) return;
+        try{
+          var p=h.fecha.split('-');
+          var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+          if(d>=hace24h&&d<=hoy) lista.push({icon:'🎉',texto:'¡FELICIDADES! Retiro aprobado - '+lbl+' - $'+(parseFloat(h.monto)||0).toFixed(2),color:'var(--green)'});
+        }catch(e){}
+      });
+    });
+  }
+
+  // 3) Proxima noticia (franjas N1/N2/N3 de las reglas)
+  if(f.proxima_noticia){
+    try{
+      var ahora=tzNow();
+      var franjas=[];
+      ['1','2','3'].forEach(function(n){
+        var d=ge('br-n'+n+'-desde'); var h=ge('br-n'+n+'-hasta');
+        if(d&&h&&d.value&&h.value){ franjas.push({n:n,desde:d.value,hasta:h.value}); }
+      });
+      franjas.forEach(function(fr){
+        var hh=parseInt(fr.desde.split(':')[0]),mm=parseInt(fr.desde.split(':')[1]);
+        var inicioFranja=new Date(ahora); inicioFranja.setHours(hh,mm,0,0);
+        var diff=(inicioFranja-ahora)/60000; // minutos
+        if(diff>0&&diff<=120){
+          var hr=Math.floor(diff/60), mn=Math.round(diff%60);
+          var txtTiempo=hr>0?(hr+'h '+mn+'min'):(mn+'min');
+          lista.push({icon:'📰',texto:'Próxima noticia (N'+fr.n+') en '+txtTiempo+' - '+fr.desde+' a '+fr.hasta,color:'var(--orange)'});
         }
       });
+    }catch(e){}
+  }
+
+  // 4) Ultima operacion para llegar al maximo
+  if(f.ultima_op_max){
+    try{
+      var maxOps=parseInt((ge('br-maxops')||{}).value)||0;
+      if(maxOps>0){
+        var hoyTrades=(TRADES||[]).filter(function(t){return t[2]===hoyTxt;}).length;
+        if(hoyTrades===maxOps-1){
+          lista.push({icon:'⚠️',texto:'Última operación disponible hoy ('+(hoyTrades+1)+'/'+maxOps+')',pulse:true,color:'var(--orange)'});
+        }
+      }
+    }catch(e){}
+  }
+
+  // 5) Operaciones abiertas (siempre que haya)
+  if(f.ops_abiertas){
+    try{
+      var nLive=(typeof POS_LIVE!=='undefined'&&Array.isArray(POS_LIVE))?POS_LIVE.length:0;
+      if(nLive>0){
+        lista.push({icon:'📊',texto:nLive+' operación(es) abierta(s)',color:'var(--blue)'});
+      }
+    }catch(e){}
+  }
+
+  // 6) Tiempo minimo - alguna operacion abierta cerca de cerrarse antes de tiempo
+  if(f.tiempo_minimo){
+    try{
+      var tminOn=(ge('rtog-tmin')||{classList:{contains:function(){return false;}}}).classList.contains('on');
+      var tminSeg=parseInt((ge('br-tmin-seg')||{}).value)||0;
+      if(tminOn&&tminSeg>0&&typeof POS_LIVE!=='undefined'&&Array.isArray(POS_LIVE)){
+        POS_LIVE.forEach(function(p){
+          var apertura=new Date(p.timestamp_apertura||p.created_at||0);
+          var transcurrido=(tzNow()-apertura)/1000;
+          if(transcurrido<tminSeg&&transcurrido>tminSeg-30){
+            lista.push({icon:'⏰',texto:p.simbolo+' cerca de cumplir tiempo mínimo',color:'var(--orange)'});
+          }
+        });
+      }
+    }catch(e){}
+  }
+
+  // 7) Perdida diaria al 80% del limite
+  if(f.perdida_cerca){
+    try{
+      var perdLim=parseFloat((ge('br-perddia')||{}).value)||0;
+      if(perdLim>0){
+        var pnlHoy=(TRADES||[]).filter(function(t){return t[2]===hoyTxt;}).reduce(function(s,t){return s+(parseFloat(t[7])||0);},0);
+        if(pnlHoy<0&&Math.abs(pnlHoy)>=perdLim*0.8){
+          lista.push({icon:'🚨',texto:'Pérdida diaria al '+Math.round(Math.abs(pnlHoy)/perdLim*100)+'% del límite ($'+pnlHoy.toFixed(2)+'/$'+perdLim+')',pulse:true,color:'var(--red)'});
+        }
+      }
+    }catch(e){}
+  }
+
+  // 8) Ganancia diaria alcanzada
+  if(f.ganancia_alcanzada){
+    try{
+      var ganLim=parseFloat((ge('br-gandia')||{}).value)||0;
+      if(ganLim>0){
+        var pnlHoy2=(TRADES||[]).filter(function(t){return t[2]===hoyTxt;}).reduce(function(s,t){return s+(parseFloat(t[7])||0);},0);
+        if(pnlHoy2>=ganLim){
+          lista.push({icon:'🎯',texto:'¡Objetivo de ganancia diaria alcanzado! +$'+pnlHoy2.toFixed(2),color:'var(--green)'});
+        }
+      }
+    }catch(e){}
+  }
+
+  // 9) Sesion por terminar (15min antes del cierre)
+  if(f.sesion_termina){
+    try{
+      var hh=ge('br-horario-hasta');
+      if(hh&&hh.value){
+        var ahora2=tzNow();
+        var p2=hh.value.split(':');
+        var fin=new Date(ahora2); fin.setHours(parseInt(p2[0]),parseInt(p2[1]),0,0);
+        var diffMin=(fin-ahora2)/60000;
+        if(diffMin>0&&diffMin<=15){
+          lista.push({icon:'🕐',texto:'Sesión cierra en '+Math.round(diffMin)+'min ('+hh.value+')',color:'var(--orange)'});
+        }
+      }
+    }catch(e){}
+  }
+
+  // 10) Drawdown semanal/mensual >5%
+  if(f.drawdown){
+    try{
+      if(AC[CID]&&AC[CID].tamano){
+        var tam=parseFloat(AC[CID].tamano)||0;
+        var hace7=new Date(tzNow().getTime()-7*86400000);
+        var pnl7=(TRADES||[]).filter(function(t){
+          var p=(t[2]||'').split('-'); var d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+          return d>=hace7;
+        }).reduce(function(s,t){return s+(parseFloat(t[7])||0);},0);
+        if(pnl7<0&&Math.abs(pnl7)/tam>0.05){
+          lista.push({icon:'📉',texto:'Drawdown semanal: '+(pnl7/tam*100).toFixed(1)+'% ($'+pnl7.toFixed(2)+')',color:'var(--red)'});
+        }
+      }
+    }catch(e){}
+  }
+
+  // 11) SL pendiente en operacion abierta
+  if(f.sl_pendiente){
+    try{
+      if(typeof POS_LIVE!=='undefined'&&Array.isArray(POS_LIVE)){
+        POS_LIVE.forEach(function(p){
+          if(!p.stop_loss){
+            var apertura=new Date(p.timestamp_apertura||p.created_at||0);
+            var transcurrido=(tzNow()-apertura)/1000;
+            if(transcurrido>60){
+              lista.push({icon:'⚠️',texto:p.simbolo+' sin SL hace '+Math.round(transcurrido)+'s',pulse:true,color:'var(--red)'});
+            }
+          }
+        });
+      }
+    }catch(e){}
+  }
+
+  // 12) Bot desconectado (>30s sin sync)
+  if(f.bot_desconectado){
+    try{
+      var ult=ge('bot-ultima-sync');
+      if(ult&&ult.textContent&&ult.textContent!=='--'){
+        // No tenemos timestamp absoluto, omitimos esta logica si no hay forma fiable
+      }
+    }catch(e){}
+  }
+
+  // 13) Operando dentro de franja de noticia
+  if(f.dentro_noticia){
+    try{
+      var ahora3=tzNow();
+      ['1','2','3'].forEach(function(n){
+        var d=ge('br-n'+n+'-desde'); var h=ge('br-n'+n+'-hasta');
+        if(d&&h&&d.value&&h.value){
+          var p1=d.value.split(':'),p2=h.value.split(':');
+          var inicio=new Date(ahora3);inicio.setHours(parseInt(p1[0]),parseInt(p1[1]),0,0);
+          var fin=new Date(ahora3);fin.setHours(parseInt(p2[0]),parseInt(p2[1]),0,0);
+          if(ahora3>=inicio&&ahora3<=fin){
+            lista.push({icon:'📡',texto:'Estás dentro de franja de noticia N'+n+' ('+d.value+'-'+h.value+')',pulse:true,color:'var(--orange)'});
+          }
+        }
+      });
+    }catch(e){}
+  }
+
+  // 14) Sin operar hoy (despues de las 18:00)
+  if(f.sin_operar_hoy){
+    try{
+      var horaActual=tzNow().getHours();
+      var hoyTradesN=(TRADES||[]).filter(function(t){return t[2]===hoyTxt;}).length;
+      if(horaActual>=18&&hoyTradesN===0){
+        lista.push({icon:'🧘',texto:'Día sin operar - Excelente disciplina',color:'var(--green)'});
+      }
+    }catch(e){}
+  }
+
+  // 15) Racha (5+ ganadas o 3+ perdidas consecutivas)
+  if(f.racha){
+    try{
+      if(TRADES&&TRADES.length>=3){
+        var ord=TRADES.slice().sort(function(a,b){
+          var ka=(a[2]||'')+' '+(a[4]||''); var kb=(b[2]||'')+' '+(b[4]||'');
+          return ka<kb?1:ka>kb?-1:0;
+        });
+        var n=0,tipo=ord[0][11];
+        for(var i=0;i<ord.length;i++){ if(ord[i][11]===tipo) n++; else break; }
+        if(tipo==='GANADA'&&n>=5) lista.push({icon:'🔥',texto:n+' trades ganados consecutivos - ¡Excelente racha!',color:'var(--green)'});
+        else if(tipo==='PERDIDA'&&n>=3) lista.push({icon:'❄️',texto:n+' trades perdidos consecutivos - Considera pausar',pulse:true,color:'var(--red)'});
+      }
+    }catch(e){}
+  }
+
+  TB_NOTI_LIST = lista;
+  if(TB_NOTI_IDX>=lista.length) TB_NOTI_IDX = 0;
+}
+
+function tbActualizarNotificaciones(){
+  tbConstruirNotificaciones();
+  var bar = ge('tb-noti-bar');
+  if(!bar) return;
+  if(!TB_NOTI_LIST.length){
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'block';
+
+  // Rotacion cada 3 segundos
+  var ahora = Date.now();
+  if(ahora - TB_NOTI_LAST_ROTATE >= 3000 || !ge('tb-noti-text').textContent){
+    TB_NOTI_LAST_ROTATE = ahora;
+    if(TB_NOTI_IDX >= TB_NOTI_LIST.length) TB_NOTI_IDX = 0;
+    var n = TB_NOTI_LIST[TB_NOTI_IDX];
+    var content = ge('tb-noti-content');
+    var icon = ge('tb-noti-icon');
+    var text = ge('tb-noti-text');
+    var counter = ge('tb-noti-counter');
+    if(content && icon && text){
+      content.classList.add('tb-noti-fade');
+      setTimeout(function(){
+        icon.textContent = n.icon || '';
+        text.textContent = n.texto || '';
+        text.style.color = n.color || 'var(--w)';
+        if(n.pulse) content.classList.add('tb-noti-pulse'); else content.classList.remove('tb-noti-pulse');
+        if(counter) counter.textContent = (TB_NOTI_IDX+1)+'/'+TB_NOTI_LIST.length;
+        content.classList.remove('tb-noti-fade');
+      }, 250);
+      TB_NOTI_IDX++;
     }
-  });
-
-  banner.classList.remove('ret-hoy','ret-mañana','ret-aprobado');
-
-  if(hoyList.length > 0){
-    var t = '💰 RETIRO HOY - ' + hoyList.map(function(x){
-      return '$'+(parseFloat(x.monto)||0).toFixed(2)+' ('+x.cuenta+')';
-    }).join(' | ');
-    banner.textContent = t;
-    banner.classList.add('ret-hoy');
-    banner.style.display = 'block';
-  } else if(mananaList.length > 0){
-    var t2 = '📅 Retiro mañana - ' + mananaList.map(function(x){
-      return '$'+(parseFloat(x.monto)||0).toFixed(2)+' ('+x.cuenta+')';
-    }).join(' | ');
-    banner.textContent = t2;
-    banner.classList.add('ret-mañana');
-    banner.style.display = 'block';
-  } else if(aprobadoList.length > 0){
-    var t3 = '🎉 ¡FELICIDADES! Retiro aprobado - ' + aprobadoList.map(function(x){
-      return '$'+(parseFloat(x.monto)||0).toFixed(2)+' ('+x.cuenta+')';
-    }).join(' | ');
-    banner.textContent = t3;
-    banner.classList.add('ret-aprobado');
-    banner.style.display = 'block';
-  } else {
-    banner.style.display = 'none';
   }
 }
+
+// Tick rapido para rotar la barra cada segundo (ademas de las llamadas desde setDate y updateAllStats)
+setInterval(function(){ try{ tbActualizarNotificaciones(); }catch(e){} }, 1000);
+
 function getDivision(){
   var el=ge('cfg-division');
   var v=el?parseFloat(el.value)||90:90;
@@ -4447,8 +4751,8 @@ function saveDivision(){
 }
 
 function updateAllStats(){
-  // v14: actualizar banner global de retiros en tiempo real
-  try { if(typeof tbActualizarBannerRetiro==='function') tbActualizarBannerRetiro(); } catch(e){}
+  // v18: refrescar barra de notificaciones
+  try { if(typeof tbActualizarNotificaciones==='function') tbActualizarNotificaciones(); } catch(e){}
   var total=TRADES.length;
   var ganadas=TRADES.filter(function(t){return t[11]==='GANADA';}).length;
   var perdidas=TRADES.filter(function(t){return t[11]==='PERDIDA';}).length;
@@ -4868,9 +5172,48 @@ function editRetiro(idx){
 }
 function delRetiro(idx){
   if(!confirm('Eliminar este retiro del historial?'))return;
+  var r = HIST_DATA[idx];
+
+  // v15: si el retiro tiene key "mi_ri" -> tambien limpiar fr/fa/monto en RET_DATA
+  try {
+    if(r && r.key){
+      var parts = r.key.split('_');
+      var mi = parts[0];
+      var ri = parseInt(parts[1]);
+      if(typeof RET_DATA !== 'undefined' && RET_DATA && RET_DATA[mi] && RET_DATA[mi].rows && RET_DATA[mi].rows[ri]){
+        RET_DATA[mi].rows[ri].fr = '';
+        RET_DATA[mi].rows[ri].fa = '';
+        RET_DATA[mi].rows[ri].monto = '';
+        RET_DATA[mi].rows[ri].rej = false;
+      }
+      // Tambien limpiar en la cuenta guardada
+      if(typeof AC !== 'undefined' && AC && AC[CID]){
+        if(AC[CID].R && AC[CID].R[mi] && AC[CID].R[mi].rows && AC[CID].R[mi].rows[ri]){
+          AC[CID].R[mi].rows[ri].fr = '';
+          AC[CID].R[mi].rows[ri].fa = '';
+          AC[CID].R[mi].rows[ri].monto = '';
+          AC[CID].R[mi].rows[ri].rej = false;
+        }
+      }
+    }
+  } catch(e){ console.warn('[TB] Error limpiando fechas del retiro:', e); }
+
   HIST_DATA.splice(idx,1);
   filterRetHist();
   updateAllStats();
+
+  // v15: persistir cambios en Supabase para que NO vuelva al reabrir
+  try {
+    if(typeof TB_USER!=='undefined' && TB_USER && TB_USER.id && typeof sbGuardarDatos==='function'){
+      sbGuardarDatos(TB_USER.id,'hist_data',HIST_DATA);
+      sbGuardarDatos(TB_USER.id,'AC',AC);
+    }
+  } catch(e){ console.warn('[TB] Error persistiendo retiro eliminado:', e); }
+
+  // Refrescar calendario y proximo retiro
+  try { if(typeof buildRetMes==='function') buildRetMes(); } catch(e){}
+  try { if(typeof calcDash==='function') calcDash(); } catch(e){}
+
   toast('Retiro eliminado','Eliminado','red');
 }
 
@@ -10233,7 +10576,7 @@ function botImportarRetiros() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v14</div>
+<div class="tb-version-tag" id="tb-version-tag">v19</div>
 
 </body>
 </html>
