@@ -44,7 +44,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v13</title>
+<title>TRADINGBEIS v14</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1674,8 +1674,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v13 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v13';
+console.log('%c[TB] TRADINGBEIS v14 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v14';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -4305,14 +4305,18 @@ function tbActualizarBannerRetiro(){
 
   var hoyList = [], mananaList = [], aprobadoList = [];
 
-  AC.forEach(function(c){
+  AC.forEach(function(c, idxC){
     if(!c || !c.ok) return;
     var cuentaLbl = c.empresa ? (c.empresa+' #'+(c.ncuenta||'')) : ('#'+(c.ncuenta||''));
 
-    // 1) Programados (estructura c.R por mes con rows)
-    if(c.R){
-      Object.keys(c.R).forEach(function(m){
-        var rows = (c.R[m] && c.R[m].rows) || [];
+    // v14: Para la cuenta activa usar RET_DATA (que es el estado en vivo
+    // mientras el usuario edita). Para las demas cuentas usar c.R guardado.
+    var fuenteR = (idxC === CID && typeof RET_DATA !== 'undefined' && RET_DATA) ? RET_DATA : c.R;
+
+    // 1) Programados
+    if(fuenteR){
+      Object.keys(fuenteR).forEach(function(m){
+        var rows = (fuenteR[m] && fuenteR[m].rows) || [];
         rows.forEach(function(r){
           if(!r || r.rej) return;
           // Programado pendiente: tiene fr (fecha programada) pero no fa (fecha aprobada)
@@ -4337,9 +4341,11 @@ function tbActualizarBannerRetiro(){
       });
     }
 
-    // 2) Tambien revisar c.H (hist_data) para retiros aprobados recientes
-    if(c.H && Array.isArray(c.H)){
-      c.H.forEach(function(h){
+    // 2) Tambien revisar c.H (hist_data) para retiros aprobados recientes.
+    //    En la cuenta activa el estado en vivo esta en HIST_DATA.
+    var fuenteH = (idxC === CID && typeof HIST_DATA !== 'undefined' && HIST_DATA) ? HIST_DATA : c.H;
+    if(fuenteH && Array.isArray(fuenteH)){
+      fuenteH.forEach(function(h){
         if(!h || h.rej) return;
         if(h.fecha){
           try{
@@ -4441,6 +4447,8 @@ function saveDivision(){
 }
 
 function updateAllStats(){
+  // v14: actualizar banner global de retiros en tiempo real
+  try { if(typeof tbActualizarBannerRetiro==='function') tbActualizarBannerRetiro(); } catch(e){}
   var total=TRADES.length;
   var ganadas=TRADES.filter(function(t){return t[11]==='GANADA';}).length;
   var perdidas=TRADES.filter(function(t){return t[11]==='PERDIDA';}).length;
@@ -10225,7 +10233,7 @@ function botImportarRetiros() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v13</div>
+<div class="tb-version-tag" id="tb-version-tag">v14</div>
 
 </body>
 </html>
