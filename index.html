@@ -46,7 +46,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v24</title>
+<title>TRADINGBEIS v25</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1698,8 +1698,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v24 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v24';
+console.log('%c[TB] TRADINGBEIS v25 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v25';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -4452,50 +4452,76 @@ function tbConstruirNotificaciones(){
     });
   }
 
-  // 5) Operaciones abiertas - v24: tambien revisar AC[i].LIVE por cuenta
+  // 5) Operaciones abiertas - v25: tolerante a tipos + fallback
   if(f.ops_abiertas){
     try{
-      var nLive = 0;
-      var lblsLive = [];
-      AC.forEach(function(c){
-        if(!c||!c.ok) return;
-        var lbl = c.empresa ? (c.empresa+' #'+(c.ncuenta||'')) : '#'+(c.ncuenta||'');
-        var n = 0;
-        if(c.LIVE && Array.isArray(c.LIVE)) n = c.LIVE.length;
-        if(n > 0){ nLive += n; lblsLive.push(lbl+': '+n); }
-      });
-      // Tambien sumar POS_LIVE global (compatibilidad)
-      if(nLive===0 && typeof POS_LIVE !== 'undefined' && Array.isArray(POS_LIVE) && POS_LIVE.length > 0){
-        nLive = POS_LIVE.length;
-      }
-      if(nLive > 0){
-        var txt = lblsLive.length > 0 ? (lblsLive.join(' | ')+' op(s) abierta(s)') : (nLive+' operación(es) abierta(s)');
+      var keys = (typeof _posLiveData !== 'undefined' && _posLiveData) ? Object.keys(_posLiveData) : [];
+      if(keys.length > 0){
+        // Agrupar por cuenta_id (siempre como string)
+        var porCuenta = {};
+        keys.forEach(function(k){
+          var p = _posLiveData[k];
+          if(!p) return;
+          var cid = (p.cuenta_id !== undefined && p.cuenta_id !== null) ? String(p.cuenta_id) : 'sin_cuenta';
+          porCuenta[cid] = (porCuenta[cid]||0) + 1;
+        });
+        var partes = [];
+        var total = 0;
+        Object.keys(porCuenta).forEach(function(cid){
+          var n = porCuenta[cid];
+          total += n;
+          // Buscar etiqueta de cuenta tolerando tipos
+          var lbl = '#'+cid;
+          if(cid !== 'sin_cuenta' && AC && AC.length){
+            for(var i=0;i<AC.length;i++){
+              if(AC[i] && AC[i].ncuenta !== undefined && AC[i].ncuenta !== null && String(AC[i].ncuenta) === cid){
+                lbl = (AC[i].empresa?AC[i].empresa+' ':'') + '#'+cid;
+                break;
+              }
+            }
+          }
+          partes.push(lbl+': '+n);
+        });
+        // Si no se pudo agrupar, mostrar al menos el total general
+        var txt;
+        if(partes.length > 0) txt = partes.join(' | ') + ' op(s) abierta(s)';
+        else txt = total + ' operación(es) abierta(s)';
         lista.push({icon:'📊', texto:txt, color:'var(--blue)'});
       }
-    }catch(e){}
+    }catch(e){ console.warn('[TB] noti ops_abiertas:', e); }
   }
 
-  // 6) Tiempo minimo (con segundos restantes)
+  // 6) Tiempo minimo (con segundos restantes) - v25: tolerante
   if(f.tiempo_minimo){
     try{
       var tminOn = (ge('rtog-tmin')||{classList:{contains:function(){return false;}}}).classList.contains('on');
       var tminSeg = parseInt((ge('br-tmin-seg')||{}).value)||0;
-      if(tminOn && tminSeg>0){
-        // Recolectar de AC[].LIVE
-        AC.forEach(function(c){
-          if(!c||!c.ok||!c.LIVE||!Array.isArray(c.LIVE)) return;
-          var lbl = c.empresa ? (c.empresa+' #'+(c.ncuenta||'')) : '#'+(c.ncuenta||'');
-          c.LIVE.forEach(function(p){
-            var apertura = new Date(p.timestamp_apertura||p.created_at||0);
-            var transcurrido = (tzNow()-apertura)/1000;
-            if(transcurrido < tminSeg && transcurrido > tminSeg-30){
-              var faltan = Math.max(0, Math.round(tminSeg - transcurrido));
-              lista.push({icon:'⏰',texto:lbl+' - '+(p.simbolo||'?')+' tiempo mínimo: faltan '+faltan+'s',color:'var(--orange)'});
+      if(tminOn && tminSeg>0 && typeof _posLiveData !== 'undefined' && _posLiveData){
+        Object.keys(_posLiveData).forEach(function(k){
+          var p = _posLiveData[k];
+          if(!p) return;
+          var apertura = new Date(p.abierta_at || p.timestamp_apertura || p.created_at || 0);
+          if(isNaN(apertura.getTime())) return;
+          var transcurrido = (tzNow() - apertura) / 1000;
+          // mostrar cuando faltan menos de 30s o cuando ya cumplio (avisar que esta listo)
+          if(transcurrido < tminSeg && transcurrido > tminSeg - 30){
+            var faltan = Math.max(0, Math.round(tminSeg - transcurrido));
+            var cid = (p.cuenta_id !== undefined && p.cuenta_id !== null) ? String(p.cuenta_id) : '';
+            var lbl = cid ? ('#'+cid) : '';
+            if(cid && AC && AC.length){
+              for(var i=0;i<AC.length;i++){
+                if(AC[i] && AC[i].ncuenta !== undefined && AC[i].ncuenta !== null && String(AC[i].ncuenta) === cid){
+                  lbl = (AC[i].empresa?AC[i].empresa+' ':'') + '#'+cid;
+                  break;
+                }
+              }
             }
-          });
+            var pre = lbl ? (lbl+' - ') : '';
+            lista.push({icon:'⏰', texto: pre + (p.simbolo||'?') + ' tiempo mínimo: faltan '+faltan+'s', color:'var(--orange)'});
+          }
         });
       }
-    }catch(e){}
+    }catch(e){ console.warn('[TB] noti tiempo_minimo:', e); }
   }
 
   // 7) Perdida diaria al 80% del limite
@@ -10506,7 +10532,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v24</div>
+<div class="tb-version-tag" id="tb-version-tag">v25</div>
 
 </body>
 </html>
