@@ -3247,6 +3247,7 @@ function openModal(view){
           <div style="font-size:11px;color:var(--w3);">Estado de conexión:</div>
           <div id="bot-estado-reg" style="font-size:11px;font-weight:700;color:var(--w3);">⚫ Sin actividad</div>
           <button class="btn-o btn-sm" onclick="botSync(false)" style="margin-left:12px;">🔄 Sincronizar ahora</button>
+          <button class="btn-o btn-sm" id="btn-importar-hist" onclick="botImportarHistorico()" title="Lee todo el historial de cTrader y graba lo que falte">📥 Importar Histórico</button>
           <div style="font-size:10px;color:var(--w3);margin-left:auto;">Última sincronización: <span id="bot-ultima-sync">--</span></div>
         </div>
       </div>
