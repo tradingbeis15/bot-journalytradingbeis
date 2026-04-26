@@ -1,17 +1,16 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v22 - Realtime trades_ctrader robusto
+TRADINGBEIS v23 - Realtime con UUID validado
 Build: 2026-04-25
-Cambios desde v21:
-  PUNTO 1: botStartRealtime ahora detecta perdida de conexion del
-           realtime via callback de subscribe(status). Si recibe
-           CHANNEL_ERROR, TIMED_OUT o CLOSED, reintenta a los 3s.
-  PUNTO 2: Vigilancia cada 30s: si el realtime no esta SUBSCRIBED,
-           lo reconecta automaticamente.
-  PUNTO 3: Logs en consola para ver cada INSERT recibido y cambios
-           de estado del canal.
-
-NOTA: Bot v22 incluido (sin cambios funcionales, solo renombrado).
+Cambios desde v22:
+  PUNTO 1: botStartRealtime ahora valida que TB_USER.id sea un UUID real
+           antes de suscribirse. Antes se suscribia con 'user_daniel'
+           (placeholder hardcoded) y nunca recibia INSERTs porque el
+           bot graba con UUID real.
+  PUNTO 2: Si el user_id cambia (login), recrea la suscripcion con el
+           nuevo UUID automaticamente.
+  PUNTO 3: El ciclo de espera ahora espera hasta tener UUID valido
+           (no se conforma con cualquier valor).
 
 ---- Historico ----
 v09: importar historico (boton Operaciones), sync retiros broker
@@ -44,7 +43,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v22</title>
+<title>TRADINGBEIS v23</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1696,8 +1695,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v22 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v22';
+console.log('%c[TB] TRADINGBEIS v23 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v23';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -9676,16 +9675,30 @@ function botResetRules() {
 // ── Supabase Realtime — escuchar nuevas operaciones del bot ──
 var _botRealtimeSub = null;
 var _botRealtimeStatus = 'disconnected';
+var _botRealtimeUserId = null; // v23: trackear con que user_id se suscribio
 function botStartRealtime() {
   if(!TB_USER || !TB_USER.id) return;
-  // v22: si ya hay suscripcion conectada, no recrear
-  if(_botRealtimeSub && _botRealtimeStatus === 'SUBSCRIBED') return;
-  // Si habia una vieja, limpiarla
+  // v23: validar que TB_USER.id sea un UUID real (no el placeholder 'user_daniel')
+  if(!_UUID_REGEX.test(TB_USER.id)){
+    console.log('[TB] Realtime esperando UUID valido (actual: '+TB_USER.id+')');
+    return;
+  }
+  // v23: si la suscripcion existe pero con OTRO user_id, descartarla
+  if(_botRealtimeSub && _botRealtimeUserId !== TB_USER.id){
+    console.log('[TB] User ID cambio ('+_botRealtimeUserId+' -> '+TB_USER.id+'), recreando realtime');
+    try { sbClient.removeChannel(_botRealtimeSub); } catch(e){}
+    _botRealtimeSub = null;
+    _botRealtimeUserId = null;
+  }
+  // Si ya hay suscripcion conectada con el mismo user_id, no recrear
+  if(_botRealtimeSub && _botRealtimeStatus === 'SUBSCRIBED' && _botRealtimeUserId === TB_USER.id) return;
+  // Si habia una vieja en otro estado, limpiarla
   if(_botRealtimeSub){
     try { sbClient.removeChannel(_botRealtimeSub); } catch(e){}
     _botRealtimeSub = null;
   }
   console.log('[TB] Iniciando realtime trades_ctrader para', TB_USER.id);
+  _botRealtimeUserId = TB_USER.id;
   try {
     _botRealtimeSub = sbClient.channel('trades_ctrader_' + TB_USER.id + '_' + Date.now())
       .on('postgres_changes', {
@@ -9806,14 +9819,14 @@ setInterval(function(){
     hookNav();
     if(_origNav || att > 40) clearInterval(iv);
   }, 300);
-  // Iniciar Realtime cuando el usuario esté logueado
+  // Iniciar Realtime cuando el usuario esté logueado con UUID real
   var att2=0; var iv2=setInterval(function(){
     att2++;
-    if(typeof TB_USER !== 'undefined' && TB_USER && TB_USER.id){
+    if(typeof TB_USER !== 'undefined' && TB_USER && TB_USER.id && _UUID_REGEX.test(TB_USER.id)){
       botStartRealtime();
       clearInterval(iv2);
     }
-    if(att2 > 60) clearInterval(iv2);
+    if(att2 > 120) clearInterval(iv2); // 60s maximo
   }, 500);
 })();
 </script>
@@ -10555,7 +10568,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v22</div>
+<div class="tb-version-tag" id="tb-version-tag">v23</div>
 
 </body>
 </html>
