@@ -46,7 +46,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v25</title>
+<title>TRADINGBEIS v26</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1698,8 +1698,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v25 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v25';
+console.log('%c[TB] TRADINGBEIS v26 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v26';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -3622,6 +3622,8 @@ function openModal(view){
       <div class="tb-noti-row"><span class="ic">🎯</span><span class="lbl">Ganancia diaria alcanzada</span><div class="tb-noti-tog on" id="tb-noti-tog-ganancia_alcanzada" onclick="tbToggleNotiFlag('ganancia_alcanzada')"></div></div>
       <div class="tb-noti-row"><span class="ic">📡</span><span class="lbl">Estás dentro de franja de noticia activa</span><div class="tb-noti-tog on" id="tb-noti-tog-dentro_noticia" onclick="tbToggleNotiFlag('dentro_noticia')"></div></div>
       <div class="tb-noti-row"><span class="ic">⚠️</span><span class="lbl">Cuenta sin operar (10 días → aviso, 15 días → alerta)</span><div class="tb-noti-tog on" id="tb-noti-tog-dias_sin_operar_10" onclick="tbToggleNotiFlag('dias_sin_operar_10')"></div></div>
+      <div class="tb-noti-row"><span class="ic">📈</span><span class="lbl">Operaciones del día (contador X/Max)</span><div class="tb-noti-tog on" id="tb-noti-tog-ops_dia" onclick="tbToggleNotiFlag('ops_dia')"></div></div>
+      <div class="tb-noti-row"><span class="ic">🕐</span><span class="lbl">Horario operacional (cuenta regresiva + cierre)</span><div class="tb-noti-tog on" id="tb-noti-tog-horario_operacional" onclick="tbToggleNotiFlag('horario_operacional')"></div></div>
     </div>
   </div>
   <div style="margin-bottom:17px;">
@@ -4379,7 +4381,8 @@ function tbCargarFlagsNoti(){
     ops_abiertas:true, tiempo_minimo:true,
     perdida_cerca:true, ganancia_alcanzada:true,
     dentro_noticia:true,
-    dias_sin_operar_10:true
+    dias_sin_operar_10:true,
+    ops_dia:true, horario_operacional:true
   };
   try{
     var s = localStorage.getItem('tb_noti_flags');
@@ -4491,7 +4494,7 @@ function tbConstruirNotificaciones(){
     }catch(e){ console.warn('[TB] noti ops_abiertas:', e); }
   }
 
-  // 6) Tiempo minimo (con segundos restantes) - v25: tolerante
+  // 6) Tiempo minimo - v26: avisa 30s DESPUES de cumplido
   if(f.tiempo_minimo){
     try{
       var tminOn = (ge('rtog-tmin')||{classList:{contains:function(){return false;}}}).classList.contains('on');
@@ -4503,9 +4506,8 @@ function tbConstruirNotificaciones(){
           var apertura = new Date(p.abierta_at || p.timestamp_apertura || p.created_at || 0);
           if(isNaN(apertura.getTime())) return;
           var transcurrido = (tzNow() - apertura) / 1000;
-          // mostrar cuando faltan menos de 30s o cuando ya cumplio (avisar que esta listo)
-          if(transcurrido < tminSeg && transcurrido > tminSeg - 30){
-            var faltan = Math.max(0, Math.round(tminSeg - transcurrido));
+          // Aviso solo durante 30s DESPUES de cumplir el tiempo minimo
+          if(transcurrido >= tminSeg && transcurrido <= tminSeg + 30){
             var cid = (p.cuenta_id !== undefined && p.cuenta_id !== null) ? String(p.cuenta_id) : '';
             var lbl = cid ? ('#'+cid) : '';
             if(cid && AC && AC.length){
@@ -4517,18 +4519,19 @@ function tbConstruirNotificaciones(){
               }
             }
             var pre = lbl ? (lbl+' - ') : '';
-            lista.push({icon:'⏰', texto: pre + (p.simbolo||'?') + ' tiempo mínimo: faltan '+faltan+'s', color:'var(--orange)'});
+            lista.push({icon:'⏰', texto: pre + (p.simbolo||'?') + ' tiempo mínimo cumplido ✓', color:'var(--green)'});
           }
         });
       }
     }catch(e){ console.warn('[TB] noti tiempo_minimo:', e); }
   }
 
-  // 7) Perdida diaria al 80% del limite
+  // 7) Perdida diaria al 80% del limite (v26: solo si regla activa)
   if(f.perdida_cerca){
     try{
+      var perdOn = (ge('rtog-perddia')||{classList:{contains:function(){return false;}}}).classList.contains('on');
       var perdLim = parseFloat((ge('br-perddia')||{}).value)||0;
-      if(perdLim>0){
+      if(perdOn && perdLim>0){
         AC.forEach(function(c){
           if(!c||!c.ok) return;
           var lbl = c.empresa ? (c.empresa+' #'+(c.ncuenta||'')) : '#'+(c.ncuenta||'');
@@ -4542,11 +4545,12 @@ function tbConstruirNotificaciones(){
     }catch(e){}
   }
 
-  // 8) Ganancia diaria alcanzada
+  // 8) Ganancia diaria alcanzada (v26: solo si regla activa)
   if(f.ganancia_alcanzada){
     try{
+      var ganOn = (ge('rtog-gandia')||{classList:{contains:function(){return false;}}}).classList.contains('on');
       var ganLim = parseFloat((ge('br-gandia')||{}).value)||0;
-      if(ganLim>0){
+      if(ganOn && ganLim>0){
         AC.forEach(function(c){
           if(!c||!c.ok) return;
           var lbl = c.empresa ? (c.empresa+' #'+(c.ncuenta||'')) : '#'+(c.ncuenta||'');
@@ -4555,6 +4559,68 @@ function tbConstruirNotificaciones(){
             lista.push({icon:'🎯',texto:lbl+' - ¡Objetivo de ganancia alcanzado! +$'+pnlHoy.toFixed(2),color:'var(--green)'});
           }
         });
+      }
+    }catch(e){}
+  }
+
+  // v26 NUEVA - Operaciones del dia (siempre visible si regla maxops activa)
+  if(f.ops_dia){
+    try{
+      var maxOn = (ge('rtog-maxops')||{classList:{contains:function(){return false;}}}).classList.contains('on');
+      var maxOps = parseInt((ge('br-maxops')||{}).value)||0;
+      if(maxOn && maxOps>0){
+        AC.forEach(function(c){
+          if(!c||!c.ok) return;
+          var lbl = c.empresa ? (c.empresa+' #'+(c.ncuenta||'')) : '#'+(c.ncuenta||'');
+          var n = (c.T||[]).filter(function(t){return t[2]===hoyTxt;}).length;
+          var pulse = (n >= maxOps - 1);
+          var color = (n >= maxOps) ? 'var(--red)' : (n >= maxOps-1 ? 'var(--orange)' : 'var(--blue)');
+          lista.push({icon:'📈',texto:lbl+': '+n+'/'+maxOps+' operaciones hoy',color:color,pulse:pulse});
+        });
+      }
+    }catch(e){}
+  }
+
+  // v26 NUEVA - Horario operacional (3 estados: antes/dentro/proximo cierre)
+  if(f.horario_operacional){
+    try{
+      var horOn = (ge('rtog-horario')||{classList:{contains:function(){return false;}}}).classList.contains('on');
+      var horDesde = ((ge('br-horario-desde')||{}).value)||'';
+      var horHasta = ((ge('br-horario-hasta')||{}).value)||'';
+      if(horOn && horDesde && horHasta){
+        var ahora = tzNow();
+        var pD = horDesde.split(':');
+        var pH = horHasta.split(':');
+        var inicio = new Date(ahora); inicio.setHours(parseInt(pD[0]),parseInt(pD[1]),0,0);
+        var fin    = new Date(ahora); fin.setHours(parseInt(pH[0]),parseInt(pH[1]),0,0);
+
+        if(ahora >= inicio && ahora <= fin){
+          // Dentro del horario
+          var minHastaCierre = (fin - ahora) / 60000;
+          if(minHastaCierre <= 15){
+            // Aviso de cierre proximo (parpadeando, minuto a minuto)
+            var minRest = Math.max(1, Math.ceil(minHastaCierre));
+            lista.push({icon:'⚠️',texto:'Cierre del horario en '+minRest+' min ('+horHasta+')',pulse:true,color:'var(--orange)'});
+          } else {
+            lista.push({icon:'✅',texto:'Dentro del horario permitido ('+horDesde+'-'+horHasta+')',color:'var(--green)'});
+          }
+        } else {
+          // Fuera del horario - cuenta regresiva al proximo
+          var proxInicio;
+          if(ahora < inicio){
+            proxInicio = inicio; // mismo dia
+          } else {
+            proxInicio = new Date(inicio.getTime() + 86400000); // mañana
+          }
+          var diffMs = proxInicio - ahora;
+          var totalMin = Math.floor(diffMs / 60000);
+          var hr = Math.floor(totalMin / 60);
+          var mn = totalMin % 60;
+          var txtTiempo;
+          if(hr > 0) txtTiempo = hr+'h '+mn+'min';
+          else txtTiempo = mn+'min';
+          lista.push({icon:'🕐',texto:'Horario permitido en '+txtTiempo+' ('+horDesde+')',color:'var(--blue)'});
+        }
       }
     }catch(e){}
   }
@@ -10532,7 +10598,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v25</div>
+<div class="tb-version-tag" id="tb-version-tag">v26</div>
 
 </body>
 </html>
