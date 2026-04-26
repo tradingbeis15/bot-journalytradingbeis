@@ -1,21 +1,27 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v07 - Visualizacion zona horaria + Retiros automaticos del bot
+TRADINGBEIS v08 - Hora centralizada + Fix sincronizacion multi-cuenta
 Build: 2026-04-25
-Cambios desde v06:
-  PUNTO 1: tbGetUserTzOffset ahora lee _userTimezone (la zona configurada
-           en cfg-timezone) en vez de TB_USER.meta.zona_horaria. Esto activa
-           la conversion UTC → zona usuario que ya estaba implementada
-           en la tabla de operaciones, panel live, hooks de realtime, etc.
-           El bot sigue grabando en UTC; el HTML lo convierte al mostrar.
-  PUNTO 2: Canal realtime para datos_app filtrado por user_id.
-           - Cuando el bot inserta un retiro automatico en hist_data,
-             el HTML recarga HIST_DATA y refresca la vista de retiros
-             al instante, sin recargar la pagina.
+Cambios desde v07:
+  PUNTO 1: Convertidor de hora CENTRALIZADO.
+           - Funciones unicas: tbHora(), tbFechaHora(), tbFechaHoy(),
+             tbFechaHoraDesdeUTC(utc), tbHoraDesdeUTC(utc).
+           - Reemplaza puntos donde se generaba hora con
+             new Date()/getHours()/toISOString().
+           - Lee la zona horaria de _userTimezone (cfg-timezone).
+           - Si no hay zona configurada usa local del navegador.
+  PUNTO 2: Fix sincronizacion con cBot (boton "Sincronizar").
+           - cuenta_id se compara como String en ambos lados (antes a veces
+             el bot grababa como int y el HTML como string -> no matcheaba).
+           - Paginacion automatica (Supabase corta en 1000 filas por defecto).
+           - Comparacion robusta de trade_id (siempre como string).
+           - Log claro en consola con cuantos trades se importaron,
+             cuantos eran duplicados y cuantos llegaron del servidor.
 
-NOTA: Bot v07 incluido en este release. Recompilar cBot.
+NOTA: Bot v07 sigue siendo el mismo, no requiere recompilar.
 
 ---- Historico ----
+v07: tbGetUserTzOffset lee _userTimezone, retiros automaticos del bot
 v06: zona horaria global, TP automatico bot, persistencia timezone
 v05: ejecLoadActive leia res.data.active, ejecLoadConfig leia res.data
 v04: titulo, esquinita opaca, console.log, .maybeSingle(),
@@ -43,7 +49,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v07</title>
+<title>TRADINGBEIS v08</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1673,8 +1679,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v07 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v07';
+console.log('%c[TB] TRADINGBEIS v08 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v08';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -4127,6 +4133,102 @@ function tzISOString(){
   var d=tzNow();
   return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+'T'+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// v08 - API CENTRALIZADA DE HORA
+// ═══════════════════════════════════════════════════════════════════════
+// TODA hora generada o mostrada por el HTML pasa por estas funciones.
+// La zona se toma de _userTimezone (campo cfg-timezone en Configuracion).
+// El bot graba en UTC; el HTML convierte al mostrar con tbHoraDesdeUTC.
+//
+// API publica:
+//   tbHora()              -> "HH:mm:ss" en zona usuario, momento actual
+//   tbHoraCorta()         -> "HH:mm"     en zona usuario, momento actual
+//   tbFechaHoy()          -> "YYYY-MM-DD" en zona usuario
+//   tbFechaHora()         -> "YYYY-MM-DD HH:mm" en zona usuario
+//   tbFechaHoraSec()      -> "YYYY-MM-DD HH:mm:ss" en zona usuario
+//   tbHoraDesdeUTC(utc)   -> dado un string UTC ("HH:mm:ss" o ISO), devuelve "HH:mm:ss" en zona usuario
+//   tbFechaHoraDesdeUTC(utc) -> dado un Date/string UTC devuelve "YYYY-MM-DD HH:mm:ss" en zona usuario
+//
+function tbHora(){
+  var d=tzNow();
+  return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+}
+function tbHoraCorta(){
+  var d=tzNow();
+  return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
+function tbFechaHoy(){
+  return tzTodayStr();
+}
+function tbFechaHora(){
+  var d=tzNow();
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
+function tbFechaHoraSec(){
+  var d=tzNow();
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+}
+// Acepta:  "HH:mm:ss"   (asume UTC)
+//          "HH:mm"
+//          "YYYY-MM-DD HH:mm:ss"
+//          ISO "YYYY-MM-DDTHH:mm:ss(Z)"
+//          Date object
+// Devuelve "HH:mm:ss" en la zona del usuario.
+function tbHoraDesdeUTC(utc){
+  if(!utc) return '';
+  try{
+    var d;
+    if(utc instanceof Date){ d=utc; }
+    else {
+      var s=String(utc).trim();
+      if(/^\d{2}:\d{2}(:\d{2})?$/.test(s)){
+        // Solo hora: necesitamos una fecha base (hoy en UTC) para construir un Date
+        var hoy=new Date();
+        var iso=hoy.getUTCFullYear()+'-'+('0'+(hoy.getUTCMonth()+1)).slice(-2)+'-'+('0'+hoy.getUTCDate()).slice(-2)+'T'+s+(s.length===5?':00':'')+'Z';
+        d=new Date(iso);
+      } else if(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s)){
+        // Fecha+hora. Si no tiene Z, asumimos UTC.
+        var iso2=s.replace(' ','T');
+        if(!/Z|[+-]\d{2}:?\d{2}$/.test(iso2)) iso2=iso2+'Z';
+        d=new Date(iso2);
+      } else {
+        d=new Date(s);
+      }
+    }
+    if(isNaN(d.getTime())) return String(utc);
+    if(_userTimezone==='local'||!_userTimezone){
+      return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+    }
+    var parts=new Intl.DateTimeFormat('en-US',{timeZone:_userTimezone,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d);
+    var p={};parts.forEach(function(x){p[x.type]=x.value;});
+    var hh=p.hour==='24'?'00':p.hour;
+    return hh+':'+p.minute+':'+p.second;
+  }catch(e){ return String(utc); }
+}
+// Devuelve "YYYY-MM-DD HH:mm:ss" en zona del usuario a partir de un valor UTC.
+function tbFechaHoraDesdeUTC(utc){
+  if(!utc) return '';
+  try{
+    var d;
+    if(utc instanceof Date){ d=utc; }
+    else {
+      var s=String(utc).trim();
+      var iso=s.replace(' ','T');
+      if(!/Z|[+-]\d{2}:?\d{2}$/.test(iso) && /T/.test(iso)) iso=iso+'Z';
+      d=new Date(iso);
+    }
+    if(isNaN(d.getTime())) return String(utc);
+    if(_userTimezone==='local'||!_userTimezone){
+      return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+    }
+    var parts=new Intl.DateTimeFormat('en-US',{timeZone:_userTimezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(d);
+    var p={};parts.forEach(function(x){p[x.type]=x.value;});
+    var hh=p.hour==='24'?'00':p.hour;
+    return p.year+'-'+p.month+'-'+p.day+' '+hh+':'+p.minute+':'+p.second;
+  }catch(e){ return String(utc); }
+}
+
 function setDate(){
   var d=getTZDate();
   var ds=['dom','lun','mar','mie','jue','vie','sab'];
@@ -8786,75 +8888,154 @@ function botTab(tab, el) {
 // ── Inicializar sección Bot ──────────────────────────────────
 
 // ── Sincronizar operaciones existentes desde Supabase ──────────
+// v08: paginacion automatica, comparacion robusta de trade_id y cuenta_id
+//      como String, log claro en consola.
 function botSync(silent) {
   if(!TB_USER || !TB_USER.id || !AC || !AC[CID]) return;
   var cuenta = AC[CID];
   var ncuenta = cuenta.ncuenta;
   if(!ncuenta) { if(!silent) toast('Esta cuenta no tiene número configurado', 'Bot', 'red'); return; }
+  var ncuentaStr = String(ncuenta);
 
-  sbClient.from('trades_ctrader')
-    .select('*')
-    .eq('user_id', TB_USER.id)
-    .eq('cuenta_id', String(ncuenta))
-    .order('created_at', { ascending: false })
-    .then(function(res){
-      if(res.error) { console.error('[BOT] Sync error:', res.error); return; }
-      if(!res.data || !res.data.length) { if(!silent) toast('Sin operaciones del bot para esta cuenta', 'Bot', 'gold'); return; }
+  console.log('[BOT][sync] Iniciando sync para cuenta', ncuentaStr, '...');
 
-      var nuevas = 0;
-      var existentesIds = {};
-      (cuenta.T||[]).forEach(function(t){ if(t[14]) existentesIds[t[14]] = true; });
+  // Indice de trades existentes por trade_id (siempre como string)
+  var existentesIds = {};
+  (cuenta.T||[]).forEach(function(t){
+    if(t[14] !== undefined && t[14] !== null && t[14] !== ''){
+      existentesIds[String(t[14])] = true;
+    }
+  });
 
-      res.data.forEach(function(row){
-        if(row.trade_id && existentesIds[row.trade_id]) return;
-        var trade = [
-          0,
-          (row.simbolo||'').toUpperCase(),
-          row.fecha || '',
-          row.hora_apertura || '',
-          row.hora_cierre || '',
-          parseFloat(row.precio_apertura)||0,
-          parseFloat(row.precio_cierre)||0,
-          parseFloat(row.pnl)||0,
-          (row.tipo||'COMPRA'),
-          parseFloat(row.lotaje)||0,
-          '',
-          parseFloat(row.pnl||0) >= 0 ? 'GANADA' : 'PERDIDA',
-          parseFloat(row.riesgo)||0,
-          '',
-          row.trade_id || '',
-          row.motivo_cierre || ''
-        ];
-        if(!cuenta.T) cuenta.T = [];
-        cuenta.T.push(trade);
-        nuevas++;
-      });
+  var todasLasFilas = [];
+  var pageSize = 1000;
+  var pageIdx = 0;
 
-      if(nuevas > 0) {
-        cuenta.T.sort(function(a,b){
-          var kA=(a[2]||'')+' '+(a[4]||''); var kB=(b[2]||'')+' '+(b[4]||'');
-          return kA<kB?1:kA>kB?-1:0;
-        });
-        if(AC[CID] && AC[CID].ncuenta === ncuenta) {
-          TRADES = cuenta.T.slice();
-          try {
-            if(typeof filterOps === 'function') filterOps();
-            if(typeof updateAllStats === 'function') updateAllStats();
-            if(typeof buildITPanel === 'function') buildITPanel();
-            if(typeof renderOps === 'function') renderOps(TRADES);
-            if(typeof calcReglas === 'function') calcReglas();
-          } catch(e) { console.warn('[BOT] Sync UI refresh error:', e); }
+  function fetchPage() {
+    var desde = pageIdx * pageSize;
+    var hasta = desde + pageSize - 1;
+    sbClient.from('trades_ctrader')
+      .select('*')
+      .eq('user_id', TB_USER.id)
+      .eq('cuenta_id', ncuentaStr)
+      .order('created_at', { ascending: false })
+      .range(desde, hasta)
+      .then(function(res){
+        if(res.error) {
+          console.error('[BOT][sync] Error pagina', pageIdx, ':', res.error);
+          finalizar();
+          return;
         }
-        sbGuardarDatos(TB_USER.id,'AC',AC);
-        if(!silent) toast('Sincronizadas ' + nuevas + ' operación(es)','Bot','green');
-        var est = ge('bot-estado-reg');
-        if(est) { est.textContent = '🟢 Conectado'; est.style.color = 'var(--green)'; }
-        var sync = ge('bot-ultima-sync');
-        if(sync) sync.textContent = new Date().toLocaleTimeString();
-      } else if(!silent) {
-        toast('No hay operaciones nuevas','Bot','gold');
-      }
+        var data = res.data || [];
+        console.log('[BOT][sync] Pagina', pageIdx, '- recibidas', data.length, 'filas');
+        if(data.length === 0){ finalizar(); return; }
+        todasLasFilas = todasLasFilas.concat(data);
+        if(data.length < pageSize){ finalizar(); return; }
+        pageIdx++;
+        if(pageIdx > 50){
+          console.warn('[BOT][sync] Limite de 50 paginas alcanzado, deteniendo');
+          finalizar();
+          return;
+        }
+        fetchPage();
+      })
+      .catch(function(err){
+        console.error('[BOT][sync] Excepcion pagina', pageIdx, ':', err);
+        finalizar();
+      });
+  }
+
+  function finalizar() {
+    if(todasLasFilas.length === 0){
+      if(!silent) toast('Sin operaciones del bot para esta cuenta', 'Bot', 'gold');
+      console.log('[BOT][sync] Total filas servidor: 0');
+      return;
+    }
+
+    var nuevas = 0;
+    var duplicadas = 0;
+    var omitidas = 0;
+
+    todasLasFilas.forEach(function(row){
+      // Comparar trade_id como string
+      var tid = (row.trade_id !== undefined && row.trade_id !== null) ? String(row.trade_id) : '';
+      if(!tid){ omitidas++; return; }
+      if(existentesIds[tid]){ duplicadas++; return; }
+      existentesIds[tid] = true; // marcar para evitar dups dentro de la misma respuesta
+
+      // Convertir hora UTC -> zona del usuario (centralizado)
+      var fecha = row.fecha || '';
+      var horaApertura = row.hora_apertura || '';
+      var horaCierre = row.hora_cierre || '';
+      try {
+        if(horaApertura){
+          var tz1 = tbConvertirHoraUTC(horaApertura, fecha);
+          horaApertura = tz1.hora;
+          fecha = tz1.fecha;
+        }
+        if(horaCierre){
+          var tz2 = tbConvertirHoraUTC(horaCierre, fecha);
+          horaCierre = tz2.hora;
+          fecha = tz2.fecha;
+        }
+      } catch(e){ console.warn('[BOT][sync] Error convirtiendo hora UTC:', e); }
+
+      var trade = [
+        0,
+        (row.simbolo||'').toUpperCase(),
+        fecha,
+        horaApertura,
+        horaCierre,
+        parseFloat(row.precio_apertura)||0,
+        parseFloat(row.precio_cierre)||0,
+        parseFloat(row.pnl)||0,
+        (row.tipo||'COMPRA'),
+        parseFloat(row.lotaje)||0,
+        '',
+        parseFloat(row.pnl||0) >= 0 ? 'GANADA' : 'PERDIDA',
+        parseFloat(row.riesgo)||0,
+        '',
+        tid,
+        row.motivo_cierre || ''
+      ];
+      if(!cuenta.T) cuenta.T = [];
+      cuenta.T.push(trade);
+      nuevas++;
     });
+
+    console.log('[BOT][sync] Resultado:',
+      'recibidas='+todasLasFilas.length,
+      'nuevas='+nuevas,
+      'duplicadas='+duplicadas,
+      'omitidas(sin tid)='+omitidas);
+
+    if(nuevas > 0) {
+      cuenta.T.sort(function(a,b){
+        var kA=(a[2]||'')+' '+(a[4]||''); var kB=(b[2]||'')+' '+(b[4]||'');
+        return kA<kB?1:kA>kB?-1:0;
+      });
+      if(AC[CID] && String(AC[CID].ncuenta) === ncuentaStr) {
+        TRADES = cuenta.T.slice();
+        try {
+          if(typeof filterOps === 'function') filterOps();
+          if(typeof updateAllStats === 'function') updateAllStats();
+          if(typeof buildITPanel === 'function') buildITPanel();
+          if(typeof renderOps === 'function') renderOps(TRADES);
+          if(typeof calcReglas === 'function') calcReglas();
+        } catch(e) { console.warn('[BOT][sync] UI refresh error:', e); }
+      }
+      sbGuardarDatos(TB_USER.id,'AC',AC);
+      if(!silent) toast('Sincronizadas ' + nuevas + ' operación(es)','Bot','green');
+      var est = ge('bot-estado-reg');
+      if(est) { est.textContent = '🟢 Conectado'; est.style.color = 'var(--green)'; }
+      var sync = ge('bot-ultima-sync');
+      if(sync) sync.textContent = tbHora();
+    } else if(!silent) {
+      toast('No hay operaciones nuevas','Bot','gold');
+    }
+  } // fin finalizar
+
+  fetchPage();
 }
 
 function botInit() {
@@ -9012,6 +9193,19 @@ function botStartRealtime() {
       }, function(payload) {
         var row = payload.new;
         if(!row) return;
+        // v07: convertir hora UTC del bot a la zona horaria configurada
+        try {
+          if(row.hora_apertura){
+            var tz1 = tbConvertirHoraUTC(row.hora_apertura, row.fecha);
+            row.hora_apertura = tz1.hora;
+            row.fecha = tz1.fecha;
+          }
+          if(row.hora_cierre){
+            var tz2 = tbConvertirHoraUTC(row.hora_cierre, row.fecha);
+            row.hora_cierre = tz2.hora;
+            row.fecha = tz2.fecha;
+          }
+        } catch(e){ console.warn('[TB] Error convirtiendo hora UTC del trade:', e); }
         // Buscar cuenta por ncuenta
         var cuentaIdx = -1;
         if(AC) AC.forEach(function(c,i){ if(c && c.ncuenta && String(c.ncuenta) === String(row.cuenta_id)) cuentaIdx=i; });
@@ -9057,7 +9251,7 @@ function botStartRealtime() {
           var est = ge('bot-estado-reg');
           if(est) { est.textContent = '🟢 Conectado'; est.style.color = 'var(--green)'; }
           var sync = ge('bot-ultima-sync');
-          if(sync) sync.textContent = new Date().toLocaleTimeString();
+          if(sync) sync.textContent = tbHora();
         }
         toast('✅ Nueva operación: ' + (row.simbolo||'') + ' · ' + (parseFloat(row.pnl)>=0?'+$':'-$') + Math.abs(parseFloat(row.pnl)||0).toFixed(2), 'Bot', parseFloat(row.pnl)>=0?'green':'red');
       })
@@ -9786,7 +9980,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v07</div>
+<div class="tb-version-tag" id="tb-version-tag">v08</div>
 
 </body>
 </html>
