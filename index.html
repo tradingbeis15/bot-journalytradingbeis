@@ -1,5 +1,16 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v30 - Multi-usuario: emailRedirectTo
+Build: 2026-04-27
+Cambios desde v29:
+  PUNTO UNICO: sbSignUp ahora pasa explicitamente emailRedirectTo apuntando
+               a la URL de la app en GitHub Pages. Antes el link del correo
+               de confirmacion redirigia al dominio raiz (sin la subcarpeta
+               del repo) y daba 404. Ahora redirige correctamente a la app.
+               URL: https://tradingbeis15.github.io/bot-journalytradingbeis/
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v24 - Notificaciones depuradas (8 tipos)
 Build: 2026-04-25
 Cambios desde v23:
@@ -46,7 +57,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v29</title>
+<title>TRADINGBEIS v30</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -63,8 +74,16 @@ const sbClient = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
 });
 
 // ─── AUTH HELPERS ──────────────────────────────────────────────
+// v30: emailRedirectTo explicito para que el link del correo redirija
+// correctamente a la app en GitHub Pages (subcarpeta del repo).
 async function sbSignUp(email, pass) {
-  const { data, error } = await sbClient.auth.signUp({ email, password: pass });
+  const { data, error } = await sbClient.auth.signUp({
+    email,
+    password: pass,
+    options: {
+      emailRedirectTo: 'https://tradingbeis15.github.io/bot-journalytradingbeis/'
+    }
+  });
   return { data, error };
 }
 async function sbSignIn(email, pass) {
@@ -1698,8 +1717,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v29 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v29';
+console.log('%c[TB] TRADINGBEIS v30 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v30';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -10625,7 +10644,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v29</div>
+<div class="tb-version-tag" id="tb-version-tag">v30</div>
 
 </body>
 </html>
