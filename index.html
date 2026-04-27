@@ -1,5 +1,26 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v31 - Multi-usuario: Código de Bot
+Build: 2026-04-27
+Cambios desde v30:
+  PUNTO 1: Nuevo sistema de Código de Acceso para el bot.
+           Cada usuario tiene un código único tipo "TBV-XXXX-XXXX"
+           que identifica su cuenta cuando el bot graba operaciones.
+           Reemplaza el uso del UUID directo en el bot.
+  PUNTO 2: Cuando el admin activa un usuario por primera vez,
+           se le genera automáticamente un código de bot.
+  PUNTO 3: Panel admin muestra código de bot por usuario con botones:
+           Generar / Regenerar / Bloquear / Activar / Copiar.
+  PUNTO 4: Mi Cuenta del usuario muestra su código + botón copiar
+           + estado del bot (activo/bloqueado).
+  PUNTO 5: Realtime detecta cambios de bot_codigo y bot_activo
+           (ej: si admin bloquea bot, usuario ve aviso al instante).
+  REQUIERE en Supabase: 2 columnas nuevas en tabla usuarios:
+           bot_codigo TEXT
+           bot_activo BOOLEAN DEFAULT true
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v30 - Multi-usuario: emailRedirectTo
 Build: 2026-04-27
 Cambios desde v29:
@@ -57,7 +78,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v30</title>
+<title>TRADINGBEIS v31</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -107,8 +128,29 @@ async function sbCargarUsuario(userId) {
   const { data, error } = await sbClient.from('usuarios').select('*').eq('id', userId).single();
   return { data, error };
 }
+
+// v31: Helpers para código de bot
+async function sbGuardarCodigoBot(userId, codigo, activo) {
+  const updates = {};
+  if (codigo !== undefined) updates.bot_codigo = codigo;
+  if (activo !== undefined) updates.bot_activo = activo;
+  const { error } = await sbClient.from('usuarios').update(updates).eq('id', userId);
+  return error;
+}
 // Regex para validar UUID (evita errores 400 con user_daniel placeholder)
 var _UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// v31: Generador de código corto para el bot (TBV-XXXX-XXXX)
+// Caracteres seguros (sin O/0/I/1 para evitar confusiones)
+function tbGenerarCodigoBot(){
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var grupo = function(){
+    var s='';
+    for(var i=0;i<4;i++) s += chars.charAt(Math.floor(Math.random()*chars.length));
+    return s;
+  };
+  return 'TBV-' + grupo() + '-' + grupo();
+}
 
 async function sbGuardarDatos(userId, clave, valor) {
   // Validar UUID antes de consultar Supabase
@@ -249,6 +291,11 @@ function sbIniciarRealtime() {
       if (d.plan !== TB_USER.plan) { cambios.push('plan'); TB_USER.plan = d.plan; }
       if ((d.plan_vence||'') !== (TB_USER.planVence||'')) { cambios.push('vencimiento'); TB_USER.planVence = d.plan_vence || ''; }
       if (d.estado !== TB_USER.estado) { cambios.push('estado'); TB_USER.estado = d.estado; }
+      // v31: cambios en código y estado del bot
+      var nuevoBotCod = d.bot_codigo || '';
+      var nuevoBotAct = d.bot_activo !== false;
+      if (nuevoBotCod !== (TB_USER.botCodigo||'')) { cambios.push('código de bot'); TB_USER.botCodigo = nuevoBotCod; }
+      if (nuevoBotAct !== (TB_USER.botActivo!==false)) { cambios.push(nuevoBotAct?'bot activado':'bot bloqueado'); TB_USER.botActivo = nuevoBotAct; }
       if (!cambios.length) return;
       try { if(typeof mcCargarPerfil==='function') mcCargarPerfil(); } catch(e){}
       try { if(typeof tbCheckAcceso==='function') tbCheckAcceso(); } catch(e){}
@@ -498,7 +545,9 @@ async function doAutoLogin(user) {
       estado: data.estado || 'activo',
       plan: data.plan || 'basico',
       planVence: data.plan_vence || '',
-      foto: data.foto || ''
+      foto: data.foto || '',
+      botCodigo: data.bot_codigo || '',
+      botActivo: data.bot_activo !== false
     };
     var acRes = await sbCargarDatos(user.id, 'AC');
     if (acRes.data) AC = acRes.data;
@@ -1717,8 +1766,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v30 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v30';
+console.log('%c[TB] TRADINGBEIS v31 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v31';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -2321,6 +2370,18 @@ function openModal(view){
         <div style="display:flex;justify-content:flex-end;">
           <button class="btn-g" onclick="mcGuardarPerfil()">Guardar Cambios</button>
         </div>
+      </div>
+    </div>
+
+    <!-- v31: MI BOT - código de acceso -->
+    <div class="panel" style="margin-top:11px;" id="mc-mi-bot-panel">
+      <div class="pan-hd"><div class="pan-t"><span class="dot g"></span>🤖 Mi Bot · Código de Acceso</div></div>
+      <div class="pan-bd">
+        <div style="font-size:11px;color:var(--w3);margin-bottom:10px;line-height:1.5;">
+          Este código identifica tu cuenta cuando el bot graba operaciones.
+          Pégalo en el parámetro <strong>"Código de Acceso"</strong> de tu bot en cTrader.
+        </div>
+        <div id="mc-bot-content"></div>
       </div>
     </div>
   </div>
@@ -7535,6 +7596,37 @@ function mcCargarPerfil(){
   // Topbar username
   var tbu=document.getElementById('tb-username');if(tbu)tbu.textContent=u.nombre||'--';
   var sun=document.getElementById('s-uname');if(sun)sun.textContent=u.nombre||'--';
+
+  // v31: Mi Bot · Código de Acceso
+  var bc = document.getElementById('mc-bot-content');
+  if(bc){
+    var bcod = u.botCodigo || '';
+    var bact = u.botActivo !== false;
+    var bh = '';
+    if(bcod){
+      var estColor = bact ? 'var(--green)' : 'var(--red)';
+      var estTxt = bact ? '● Bot activo' : '● Bot bloqueado por el administrador';
+      bh += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">';
+      bh += '<input class="fi" type="text" readonly value="'+bcod+'" style="flex:1;min-width:200px;font-family:monospace;font-size:15px;font-weight:700;letter-spacing:2px;color:var(--gold);text-align:center;" id="mc-bot-codigo-input">';
+      bh += '<button class="btn-g btn-sm" onclick="mcCopiarMiCodigoBot()">📋 Copiar</button>';
+      bh += '</div>';
+      bh += '<div style="font-size:11px;font-weight:700;color:'+estColor+';">'+estTxt+'</div>';
+      if(!bact){
+        bh += '<div style="font-size:10px;color:var(--w3);margin-top:6px;">Tu bot ha sido deshabilitado. Contacta al administrador.</div>';
+      }
+    } else {
+      bh += '<div style="font-size:11px;color:var(--w3);padding:10px;background:rgba(212,168,67,.05);border-radius:6px;border-left:3px solid var(--gold);">';
+      bh += 'Tu código de bot aún no ha sido generado. Contacta al administrador para que lo active.';
+      bh += '</div>';
+    }
+    bc.innerHTML = bh;
+  }
+}
+
+function mcCopiarMiCodigoBot(){
+  var inp = document.getElementById('mc-bot-codigo-input');if(!inp)return;
+  inp.select();inp.setSelectionRange(0,99999);
+  try{document.execCommand('copy');toast('Código copiado','Bot','green');}catch(e){toast('No se pudo copiar','Bot','red');}
 }
 
 // ─── GUARDAR PERFIL ───────────────────────────────────────────
@@ -7859,7 +7951,7 @@ function admTab(name,el){
           desde:d.desde||'',rol:d.rol||'viewer',estado:d.estado||'pendiente',
           plan:d.plan||'basico',planVence:d.plan_vence||'',foto:d.foto||'',
           motivoRechazo:d.motivo_rechazo||'',
-          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''}
+          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCodigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
         };});
       }
       admRenderOverview();
@@ -7876,7 +7968,7 @@ function admTab(name,el){
           desde:d.desde||'',rol:d.rol||'viewer',estado:d.estado||'pendiente',
           plan:d.plan||'basico',planVence:d.plan_vence||'',foto:d.foto||'',
           motivoRechazo:d.motivo_rechazo||'',
-          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''}
+          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCodigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
         };});
       }
       admRenderUsuarios();
@@ -8230,6 +8322,30 @@ function admVerUsuario(userId){
   h+='</div></div>';
   h+='</div>';
 
+  // v31: Código de Bot (acceso al cTrader cBot)
+  var bcod = u.botCodigo || '';
+  var bact = u.botActivo !== false;
+  h+='<div class="panel" style="margin-bottom:11px;">';
+  h+='<div class="pan-hd"><div class="pan-t"><span class="dot g"></span>🤖 Código de Bot</div></div>';
+  h+='<div class="pan-bd">';
+  h+='<div style="font-size:10px;color:var(--w3);margin-bottom:8px;">Este código permite al usuario conectar su bot de cTrader. El usuario lo pega en el parámetro "Código de Acceso" del bot.</div>';
+  if(bcod){
+    h+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">';
+    h+='<input class="fi" type="text" readonly value="'+bcod+'" style="flex:1;min-width:180px;font-family:monospace;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--gold);" id="adm-botcod-'+userId+'">';
+    h+='<button class="adm-action-btn" onclick="admCopiarCodigoBot(\''+userId+'\')">📋 Copiar</button>';
+    h+='<span style="font-size:11px;font-weight:700;color:'+(bact?'var(--green)':'var(--red)')+';">'+(bact?'● Activo':'● Bloqueado')+'</span>';
+    h+='</div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+    if(bact) h+='<button class="adm-action-btn danger" onclick="admToggleBot(\''+userId+'\',false)">🔒 Bloquear bot</button>';
+    else     h+='<button class="adm-action-btn success" onclick="admToggleBot(\''+userId+'\',true)">✅ Activar bot</button>';
+    h+='<button class="adm-action-btn" onclick="admRegenerarCodigoBot(\''+userId+'\')">🔄 Regenerar código</button>';
+    h+='</div>';
+  } else {
+    h+='<div style="font-size:11px;color:var(--w2);margin-bottom:8px;">Este usuario aún no tiene código de bot.</div>';
+    h+='<button class="adm-action-btn success" onclick="admGenerarCodigoBot(\''+userId+'\')">⚡ Generar código de bot</button>';
+  }
+  h+='</div></div>';
+
   // Pagos del usuario
   h+='<div class="panel" style="margin-bottom:11px;">';
   h+='<div class="pan-hd"><div class="pan-t"><span class="dot g"></span>Pagos ('+pagosU.length+')</div></div>';
@@ -8352,8 +8468,19 @@ function admCambiarEstado(userId, nuevoEstado){
   tbRegistrarActividad(TB_USER.id,'admin','estado','Cambió estado de '+u.nombre+': "'+ant+'" → "'+nuevoEstado+'"');
   tbEnviarMensaje('admin_sistema',userId,'Estado de Cuenta Actualizado','Tu cuenta ha sido '+textos[nuevoEstado]+'. '+(nuevoEstado==='activo'?'Ya puedes usar el sistema con normalidad.':'Contacta al administrador para más información.'),true);
   if(userId===TB_USER.id){TB_USER.estado=nuevoEstado;tbCheckAcceso();}
+  // v31: Si se activa el usuario y no tiene código de bot, generarlo automáticamente
+  var updates = {estado:nuevoEstado};
+  if(nuevoEstado==='activo' && !u.botCodigo){
+    var nuevoCodigo = tbGenerarCodigoBot();
+    u.botCodigo = nuevoCodigo;
+    u.botActivo = true;
+    updates.bot_codigo = nuevoCodigo;
+    updates.bot_activo = true;
+    tbRegistrarActividad(TB_USER.id,'admin','bot','Generó código de bot automático para '+u.nombre+': '+nuevoCodigo);
+    tbEnviarMensaje('admin_sistema',userId,'Código de Bot','Tu código de acceso al bot es: '+nuevoCodigo+'\n\nÚsalo en el parámetro "Código de Acceso" de tu bot en cTrader.',true);
+  }
   // Guardar en Supabase (Realtime notificará al usuario automáticamente)
-  sbClient.from('usuarios').update({estado:nuevoEstado}).eq('id',userId).then(function(){});
+  sbClient.from('usuarios').update(updates).eq('id',userId).then(function(){});
   admVerUsuario(userId);
   toast('Estado actualizado: '+nuevoEstado,'Admin','gold');
 }
@@ -8383,6 +8510,55 @@ function admCambiarRol(userId){
   sbClient.from('usuarios').update({rol:u.rol}).eq('id',userId).then(function(){});
   admActualizarNavAdmin();
   toast('Rol actualizado: '+u.rol,'Admin','gold');
+}
+
+// v31: Funciones de Código de Bot
+function admGenerarCodigoBot(userId){
+  var u=TB_USERS.filter(function(x){return x.id===userId;})[0];if(!u)return;
+  var codigo = tbGenerarCodigoBot();
+  u.botCodigo = codigo;
+  u.botActivo = true;
+  sbGuardarCodigoBot(userId, codigo, true).then(function(err){
+    if(err){toast('Error: '+err.message,'Bot','red');return;}
+    tbRegistrarActividad(TB_USER.id,'admin','bot','Generó código de bot para '+u.nombre+': '+codigo);
+    tbEnviarMensaje('admin_sistema',userId,'Código de Bot Generado','Tu código de acceso al bot es: '+codigo+'\n\nÚsalo en el parámetro "Código de Acceso" de tu bot en cTrader.',true);
+    admVerUsuario(userId);
+    toast('Código generado: '+codigo,'Bot','gold');
+  });
+}
+
+function admRegenerarCodigoBot(userId){
+  if(!confirm('¿Regenerar el código? El código anterior dejará de funcionar y el usuario tendrá que actualizar su bot.'))return;
+  var u=TB_USERS.filter(function(x){return x.id===userId;})[0];if(!u)return;
+  var codAnt = u.botCodigo;
+  var codNue = tbGenerarCodigoBot();
+  u.botCodigo = codNue;
+  sbGuardarCodigoBot(userId, codNue, undefined).then(function(err){
+    if(err){toast('Error: '+err.message,'Bot','red');return;}
+    tbRegistrarActividad(TB_USER.id,'admin','bot','Regeneró código de bot para '+u.nombre+': '+codAnt+' → '+codNue);
+    tbEnviarMensaje('admin_sistema',userId,'Código de Bot Actualizado','Tu nuevo código de acceso al bot es: '+codNue+'\n\nEl código anterior ya no funciona. Actualízalo en tu bot de cTrader.',true);
+    admVerUsuario(userId);
+    toast('Código regenerado: '+codNue,'Bot','gold');
+  });
+}
+
+function admToggleBot(userId, activar){
+  var u=TB_USERS.filter(function(x){return x.id===userId;})[0];if(!u)return;
+  if(!activar && !confirm('¿Bloquear el bot de este usuario? El bot dejará de grabar operaciones hasta que lo reactives.'))return;
+  u.botActivo = activar;
+  sbGuardarCodigoBot(userId, undefined, activar).then(function(err){
+    if(err){toast('Error: '+err.message,'Bot','red');return;}
+    tbRegistrarActividad(TB_USER.id,'admin','bot',(activar?'Activó':'Bloqueó')+' el bot de '+u.nombre);
+    tbEnviarMensaje('admin_sistema',userId,activar?'Bot Activado':'Bot Bloqueado',activar?'Tu bot ha sido activado. Ya puede grabar operaciones.':'Tu bot ha sido bloqueado por el administrador. No grabará operaciones hasta que sea reactivado.',true);
+    admVerUsuario(userId);
+    toast(activar?'Bot activado':'Bot bloqueado','Bot',activar?'green':'red');
+  });
+}
+
+function admCopiarCodigoBot(userId){
+  var inp=document.getElementById('adm-botcod-'+userId);if(!inp)return;
+  inp.select();inp.setSelectionRange(0,99999);
+  try{document.execCommand('copy');toast('Código copiado','Bot','green');}catch(e){toast('No se pudo copiar','Bot','red');}
 }
 
 function admCambiarVencimiento(userId){
@@ -10644,7 +10820,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v30</div>
+<div class="tb-version-tag" id="tb-version-tag">v31</div>
 
 </body>
 </html>
