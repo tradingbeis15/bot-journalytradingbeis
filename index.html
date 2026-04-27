@@ -46,7 +46,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v28</title>
+<title>TRADINGBEIS v29</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1698,8 +1698,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v28 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v28';
+console.log('%c[TB] TRADINGBEIS v29 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v29';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -9871,6 +9871,10 @@ setInterval(function(){
     att2++;
     if(typeof TB_USER !== 'undefined' && TB_USER && TB_USER.id && _UUID_REGEX.test(TB_USER.id)){
       botStartRealtime();
+      // v29: cargar reglas al inicio para que la barra de notificaciones
+      // tenga acceso a horario, max ops, franjas, etc. desde el primer
+      // momento sin tener que entrar a la pagina Bot.
+      try { if(typeof botLoadState === 'function') botLoadState(); } catch(e){}
       clearInterval(iv2);
     }
     if(att2 > 120) clearInterval(iv2); // 60s maximo
@@ -10621,7 +10625,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v28</div>
+<div class="tb-version-tag" id="tb-version-tag">v29</div>
 
 </body>
 </html>
