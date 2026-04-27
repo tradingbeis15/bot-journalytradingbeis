@@ -1,5 +1,22 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v32 - Restricciones por Plan
+Build: 2026-04-27
+Cambios desde v31:
+  PUNTO 1: Plan Básico ya NO ve las pestañas Reglas, Bot ni Ejecución.
+           Solo plan Prop (y admin) tienen acceso a estas funciones.
+           Si un usuario pasa de Prop a Básico mientras está parado en
+           una de esas páginas, lo manda al dashboard automáticamente.
+  PUNTO 2: Funcion tbAplicarRestriccionesPlan() oculta los items del
+           menú lateral según el plan. Se llama al iniciar la app, en
+           realtime cuando el admin cambia plan, y en admCambiarPlan.
+  PUNTO 3: nav() bloquea por código el acceso a páginas restringidas
+           (defensa en profundidad por si quedan items visibles).
+  PUNTO 4: Bot v32 tambien detecta el plan: en básico SOLO graba
+           operaciones, no procesa ordenes ni aplica reglas.
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v31 - Multi-usuario: Código de Bot
 Build: 2026-04-27
 Cambios desde v30:
@@ -78,7 +95,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v31</title>
+<title>TRADINGBEIS v32</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -300,7 +317,8 @@ function sbIniciarRealtime() {
       try { if(typeof mcCargarPerfil==='function') mcCargarPerfil(); } catch(e){}
       try { if(typeof tbCheckAcceso==='function') tbCheckAcceso(); } catch(e){}
       try { if(typeof tbCheckVencimiento==='function') tbCheckVencimiento(); } catch(e){}
-      try { if(typeof admActualizarNavAdmin==='function') admActualizarNavAdmin(); } catch(e){}
+      try { if(typeof admActualizarNavAdmin==='function') admActualizarNavAdmin();
+      try { if(typeof tbAplicarRestriccionesPlan==='function') tbAplicarRestriccionesPlan(); } catch(e){} } catch(e){}
       if (typeof toast==='function') toast('Tu cuenta fue actualizada por el administrador ('+cambios.join(', ')+')','Sistema','gold');
     })
     .subscribe();
@@ -1766,8 +1784,8 @@ body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v31 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v31';
+console.log('%c[TB] TRADINGBEIS v32 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v32';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -2243,9 +2261,9 @@ function openModal(view){
         <div class="nav-g">Cuenta</div>
         <div class="nav-i" onclick="nav('notas',this)"><span class="nav-ico">📓</span>Notas</div>
         <div class="nav-i" onclick="nav('certificados',this)"><span class="nav-ico">📄</span>Certificados</div>
-        <div class="nav-i" onclick="nav('reglas',this)"><span class="nav-ico">🛡</span>Reglas</div>
-        <div class="nav-i" onclick="nav('bot',this)"><span class="nav-ico">🤖</span>Bot</div>
-        <div class="nav-i" onclick="nav('ejecucion',this)"><span class="nav-ico">⚡</span>Ejecución</div>
+        <div class="nav-i" id="nav-item-reglas" onclick="nav('reglas',this)"><span class="nav-ico">🛡</span>Reglas</div>
+        <div class="nav-i" id="nav-item-bot" onclick="nav('bot',this)"><span class="nav-ico">🤖</span>Bot</div>
+        <div class="nav-i" id="nav-item-ejecucion" onclick="nav('ejecucion',this)"><span class="nav-ico">⚡</span>Ejecución</div>
         <div class="nav-i" onclick="nav('config',this)"><span class="nav-ico">⚙️</span>Configuracion</div>
         <div class="nav-g">Perfil</div>
         <div class="nav-i" onclick="navMiCuenta('perfil',this)"><span class="nav-ico">👤</span>Mi Cuenta</div>
@@ -4011,6 +4029,12 @@ function logout(){
   });
 }
 function nav(name,el){
+  // v32: bloquear acceso a Reglas, Bot, Ejecución si plan = básico (admin pasa siempre)
+  if (TB_USER && TB_USER.rol !== 'admin' && TB_USER.plan === 'basico'
+      && (name === 'reglas' || name === 'bot' || name === 'ejecucion')) {
+    toast('Esta función requiere plan Prop. Solicita un cambio de plan.','Plan Básico','red');
+    return;
+  }
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.nav-i').forEach(function(n){n.classList.remove('on');});
   ge('page-'+name).classList.add('on');if(el)el.classList.add('on');
@@ -6835,6 +6859,8 @@ function initApp(){
   var ln=document.querySelector('#nav-l1 .nav-i[onclick*="live"]');if(ln)ln.classList.add('on');
   _initAppCore();
   buildResumenes();
+  // v32: aplicar restricciones de plan (oculta Reglas/Bot/Ejecución para básicos)
+  try { if(typeof tbAplicarRestriccionesPlan==='function') tbAplicarRestriccionesPlan(); } catch(e){}
   // Aplicar foto guardada a TODOS los avatares (v10.21)
   if(TB_USER&&TB_USER.foto){
     var img='<img src="'+TB_USER.foto+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
@@ -8493,7 +8519,7 @@ function admCambiarPlan(userId){
   tbRegistrarActividad(userId,'admin','plan','Plan cambiado de "'+planTextos[ant]+'" a "'+planTextos[u.plan]+'"');
   tbRegistrarActividad(TB_USER.id,'admin','plan','Cambió plan de '+u.nombre+': "'+planTextos[ant]+'" → "'+planTextos[u.plan]+'"');
   tbEnviarMensaje('admin_sistema',userId,'Plan Actualizado','Tu plan ha sido actualizado a '+planTextos[u.plan]+'. '+(u.plan==='prop'?'Ya tienes acceso completo al sistema.':u.plan==='basico'?'Tu acceso ha sido ajustado al plan Básico.':'Plan VIP próximamente disponible.'),true);
-  if(userId===TB_USER.id){TB_USER.plan=u.plan;mcCargarPerfil();}
+  if(userId===TB_USER.id){TB_USER.plan=u.plan;mcCargarPerfil();try{tbAplicarRestriccionesPlan();}catch(e){}}
   sbClient.from('usuarios').update({plan:u.plan}).eq('id',userId).then(function(){});
   admVerUsuario(userId);
   toast('Plan actualizado: '+planTextos[u.plan],'Admin','gold');
@@ -8509,6 +8535,7 @@ function admCambiarRol(userId){
   if(userId===TB_USER.id){TB_USER.rol=u.rol;mcCargarPerfil();}
   sbClient.from('usuarios').update({rol:u.rol}).eq('id',userId).then(function(){});
   admActualizarNavAdmin();
+  try { if(typeof tbAplicarRestriccionesPlan==='function') tbAplicarRestriccionesPlan(); } catch(e){}
   toast('Rol actualizado: '+u.rol,'Admin','gold');
 }
 
@@ -9033,6 +9060,30 @@ function admActualizarBadges(){
 function admActualizarNavAdmin(){
   var item=document.getElementById('nav-admin-item');
   if(item)item.style.display=(TB_USER&&TB_USER.rol==='admin')?'block':'none';
+}
+
+// v32: Restricciones por plan (básico vs prop)
+// El plan básico no ve Reglas, Bot ni Ejecución en el menú lateral.
+// Admin siempre ve todo.
+function tbAplicarRestriccionesPlan(){
+  if(!TB_USER) return;
+  var esAdmin = TB_USER.rol === 'admin';
+  var esBasico = TB_USER.plan === 'basico';
+  var ocultar = !esAdmin && esBasico;
+  var ids = ['nav-item-reglas','nav-item-bot','nav-item-ejecucion'];
+  ids.forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.style.display = ocultar ? 'none' : 'flex';
+  });
+  // Si el usuario está parado en una página restringida cuando le bajan al plan básico,
+  // mandarlo al dashboard.
+  if(ocultar){
+    var actual = document.querySelector('.page.on');
+    if(actual && (actual.id==='page-reglas' || actual.id==='page-bot' || actual.id==='page-ejecucion')){
+      var dash = document.querySelector('.nav-i[onclick*="dashboard"]');
+      try { nav('dashboard', dash); } catch(e){}
+    }
+  }
 }
 
 // ─── HOOKS: registrar actividad automática en eventos del sistema ─
@@ -10820,7 +10871,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v31</div>
+<div class="tb-version-tag" id="tb-version-tag">v32</div>
 
 </body>
 </html>
