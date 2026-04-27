@@ -1,19 +1,23 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
-TRADINGBEIS v32 - Restricciones por Plan
+TRADINGBEIS v32 - Sistema de Planes (Básico = Solo Vista)
 Build: 2026-04-27
 Cambios desde v31:
-  PUNTO 1: Plan Básico ya NO ve las pestañas Reglas, Bot ni Ejecución.
-           Solo plan Prop (y admin) tienen acceso a estas funciones.
-           Si un usuario pasa de Prop a Básico mientras está parado en
-           una de esas páginas, lo manda al dashboard automáticamente.
-  PUNTO 2: Funcion tbAplicarRestriccionesPlan() oculta los items del
-           menú lateral según el plan. Se llama al iniciar la app, en
-           realtime cuando el admin cambia plan, y en admCambiarPlan.
-  PUNTO 3: nav() bloquea por código el acceso a páginas restringidas
-           (defensa en profundidad por si quedan items visibles).
-  PUNTO 4: Bot v32 tambien detecta el plan: en básico SOLO graba
-           operaciones, no procesa ordenes ni aplica reglas.
+  PUNTO 1: Plan Básico = MODO SOLO VISTA. El usuario entra a todas las
+           pantallas y VE los datos, pero todos los botones e inputs
+           están deshabilitados (grises, opacos, sin click).
+  PUNTO 2: Banner superior en cada página restringida con mensaje
+           "Plan Básico - Solo Vista" + botón "Solicitar Plan Prop"
+           que lleva directo a Mi Cuenta → Pagos.
+  PUNTO 3: Items del menú lateral muestran candado 🔒 al lado de su
+           nombre cuando el plan es básico.
+  PUNTO 4: Mi Cuenta (perfil, pagos, mensajes) NO se bloquea, el
+           usuario debe poder gestionar su perfil y solicitar cambio.
+  PUNTO 5: Plan Prop y VIP = acceso completo (sin candados).
+  PUNTO 6: Rol Admin = sin restricciones (aunque su plan fuera básico).
+  PUNTO 7: Realtime: si admin cambia plan en vivo, candados aparecen
+           o desaparecen al instante para el usuario.
+  PUNTO 8: Bot v32 detecta plan y NO graba si plan = básico.
 ═══════════════════════════════════════════════════════════════════════
 
 ═══════════════════════════════════════════════════════════════════════
@@ -317,8 +321,9 @@ function sbIniciarRealtime() {
       try { if(typeof mcCargarPerfil==='function') mcCargarPerfil(); } catch(e){}
       try { if(typeof tbCheckAcceso==='function') tbCheckAcceso(); } catch(e){}
       try { if(typeof tbCheckVencimiento==='function') tbCheckVencimiento(); } catch(e){}
-      try { if(typeof admActualizarNavAdmin==='function') admActualizarNavAdmin();
-      try { if(typeof tbAplicarRestriccionesPlan==='function') tbAplicarRestriccionesPlan(); } catch(e){} } catch(e){}
+      try { if(typeof admActualizarNavAdmin==='function') admActualizarNavAdmin(); } catch(e){}
+      // v32: re-aplicar restricciones por si cambió el plan
+      try { if(typeof tbAplicarRestriccionesPlan==='function') tbAplicarRestriccionesPlan(); } catch(e){}
       if (typeof toast==='function') toast('Tu cuenta fue actualizada por el administrador ('+cambios.join(', ')+')','Sistema','gold');
     })
     .subscribe();
@@ -1781,6 +1786,74 @@ body.light-mode .faq-close-btn{background:#fff;border-color:#dde;color:#555;}
 }
 body.light-mode .tb-version-tag{color:rgba(0,0,0,0.2);}
 
+/* ─── v32: Plan Básico - Modo Solo Vista ───────────────────────────── */
+/* Banner superior en cada página restringida */
+.tb-plan-banner{
+  display:none;
+  background:linear-gradient(90deg,rgba(212,168,67,.18),rgba(212,168,67,.08));
+  border:1px solid rgba(212,168,67,.4);
+  border-radius:8px;
+  padding:11px 14px;
+  margin:0 0 14px 0;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+body.tb-plan-locked .page.on .tb-plan-banner{display:flex;}
+.tb-plan-banner-ico{
+  font-size:20px;
+  flex-shrink:0;
+}
+.tb-plan-banner-txt{
+  flex:1;
+  min-width:200px;
+  font-size:12px;
+  color:var(--w2);
+  line-height:1.4;
+}
+.tb-plan-banner-txt strong{color:var(--gold);}
+.tb-plan-banner-btn{
+  background:var(--gold);
+  color:#1a1a1a;
+  border:none;
+  padding:7px 14px;
+  border-radius:6px;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.tb-plan-banner-btn:hover{filter:brightness(1.1);}
+
+/* Bloquear interacción en páginas restringidas (todas menos las exentas) */
+body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre){
+  position:relative;
+}
+body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) button:not(.tb-plan-banner-btn):not(.l-tab):not(.tab-btn),
+body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) input:not([type="hidden"]),
+body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) select,
+body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) textarea,
+body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) .toggle,
+body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) [onclick]:not(.tb-plan-banner-btn):not(.tab-btn):not(.l-tab){
+  pointer-events:none !important;
+  opacity:.55 !important;
+  filter:grayscale(.4);
+  cursor:not-allowed !important;
+}
+/* Pestañas internas (sub-tabs) sí pueden cambiarse para que vean cada vista */
+body.tb-plan-locked .tab-btn{
+  pointer-events:auto !important;
+  opacity:1 !important;
+  filter:none !important;
+}
+/* Candado en items del menú lateral cuando plan básico */
+body.tb-plan-locked .nav-i.tb-nav-locked::after{
+  content:" 🔒";
+  font-size:10px;
+  margin-left:4px;
+  opacity:.7;
+}
+
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
@@ -2261,9 +2334,9 @@ function openModal(view){
         <div class="nav-g">Cuenta</div>
         <div class="nav-i" onclick="nav('notas',this)"><span class="nav-ico">📓</span>Notas</div>
         <div class="nav-i" onclick="nav('certificados',this)"><span class="nav-ico">📄</span>Certificados</div>
-        <div class="nav-i" id="nav-item-reglas" onclick="nav('reglas',this)"><span class="nav-ico">🛡</span>Reglas</div>
-        <div class="nav-i" id="nav-item-bot" onclick="nav('bot',this)"><span class="nav-ico">🤖</span>Bot</div>
-        <div class="nav-i" id="nav-item-ejecucion" onclick="nav('ejecucion',this)"><span class="nav-ico">⚡</span>Ejecución</div>
+        <div class="nav-i" onclick="nav('reglas',this)"><span class="nav-ico">🛡</span>Reglas</div>
+        <div class="nav-i" onclick="nav('bot',this)"><span class="nav-ico">🤖</span>Bot</div>
+        <div class="nav-i" onclick="nav('ejecucion',this)"><span class="nav-ico">⚡</span>Ejecución</div>
         <div class="nav-i" onclick="nav('config',this)"><span class="nav-ico">⚙️</span>Configuracion</div>
         <div class="nav-g">Perfil</div>
         <div class="nav-i" onclick="navMiCuenta('perfil',this)"><span class="nav-ico">👤</span>Mi Cuenta</div>
@@ -4029,12 +4102,6 @@ function logout(){
   });
 }
 function nav(name,el){
-  // v32: bloquear acceso a Reglas, Bot, Ejecución si plan = básico (admin pasa siempre)
-  if (TB_USER && TB_USER.rol !== 'admin' && TB_USER.plan === 'basico'
-      && (name === 'reglas' || name === 'bot' || name === 'ejecucion')) {
-    toast('Esta función requiere plan Prop. Solicita un cambio de plan.','Plan Básico','red');
-    return;
-  }
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.nav-i').forEach(function(n){n.classList.remove('on');});
   ge('page-'+name).classList.add('on');if(el)el.classList.add('on');
@@ -6859,7 +6926,7 @@ function initApp(){
   var ln=document.querySelector('#nav-l1 .nav-i[onclick*="live"]');if(ln)ln.classList.add('on');
   _initAppCore();
   buildResumenes();
-  // v32: aplicar restricciones de plan (oculta Reglas/Bot/Ejecución para básicos)
+  // v32: aplicar restricciones de plan (modo solo vista para básico)
   try { if(typeof tbAplicarRestriccionesPlan==='function') tbAplicarRestriccionesPlan(); } catch(e){}
   // Aplicar foto guardada a TODOS los avatares (v10.21)
   if(TB_USER&&TB_USER.foto){
@@ -8519,7 +8586,7 @@ function admCambiarPlan(userId){
   tbRegistrarActividad(userId,'admin','plan','Plan cambiado de "'+planTextos[ant]+'" a "'+planTextos[u.plan]+'"');
   tbRegistrarActividad(TB_USER.id,'admin','plan','Cambió plan de '+u.nombre+': "'+planTextos[ant]+'" → "'+planTextos[u.plan]+'"');
   tbEnviarMensaje('admin_sistema',userId,'Plan Actualizado','Tu plan ha sido actualizado a '+planTextos[u.plan]+'. '+(u.plan==='prop'?'Ya tienes acceso completo al sistema.':u.plan==='basico'?'Tu acceso ha sido ajustado al plan Básico.':'Plan VIP próximamente disponible.'),true);
-  if(userId===TB_USER.id){TB_USER.plan=u.plan;mcCargarPerfil();try{tbAplicarRestriccionesPlan();}catch(e){}}
+  if(userId===TB_USER.id){TB_USER.plan=u.plan;mcCargarPerfil();try{if(typeof tbAplicarRestriccionesPlan==='function')tbAplicarRestriccionesPlan();}catch(e){}}
   sbClient.from('usuarios').update({plan:u.plan}).eq('id',userId).then(function(){});
   admVerUsuario(userId);
   toast('Plan actualizado: '+planTextos[u.plan],'Admin','gold');
@@ -8535,7 +8602,6 @@ function admCambiarRol(userId){
   if(userId===TB_USER.id){TB_USER.rol=u.rol;mcCargarPerfil();}
   sbClient.from('usuarios').update({rol:u.rol}).eq('id',userId).then(function(){});
   admActualizarNavAdmin();
-  try { if(typeof tbAplicarRestriccionesPlan==='function') tbAplicarRestriccionesPlan(); } catch(e){}
   toast('Rol actualizado: '+u.rol,'Admin','gold');
 }
 
@@ -9062,27 +9128,77 @@ function admActualizarNavAdmin(){
   if(item)item.style.display=(TB_USER&&TB_USER.rol==='admin')?'block':'none';
 }
 
-// v32: Restricciones por plan (básico vs prop)
-// El plan básico no ve Reglas, Bot ni Ejecución en el menú lateral.
-// Admin siempre ve todo.
+// ═══════════════════════════════════════════════════════════════════
+// v32: SISTEMA DE PLANES (Básico = solo vista, Prop/VIP = uso completo)
+// ═══════════════════════════════════════════════════════════════════
+
+// Páginas que el usuario Básico SÍ puede usar normalmente (sin candado)
+var TB_PAGES_LIBRES = ['page-micuenta'];
+
+// Items del menú lateral que llevan candado en plan básico
+// (todo excepto Mi Cuenta y Administrador que se manejan aparte)
+var TB_NAV_RESTRINGIDOS = [];
+
+// Helper: detectar si plan es básico Y rol no es admin
+function tbEsBasicoRestringido(){
+  if(!TB_USER) return false;
+  if(TB_USER.rol === 'admin') return false;
+  return (TB_USER.plan === 'basico' || !TB_USER.plan);
+}
+
+// Aplica restricciones visuales según el plan del usuario
 function tbAplicarRestriccionesPlan(){
   if(!TB_USER) return;
-  var esAdmin = TB_USER.rol === 'admin';
-  var esBasico = TB_USER.plan === 'basico';
-  var ocultar = !esAdmin && esBasico;
-  var ids = ['nav-item-reglas','nav-item-bot','nav-item-ejecucion'];
-  ids.forEach(function(id){
-    var el = document.getElementById(id);
-    if(el) el.style.display = ocultar ? 'none' : 'flex';
+  var restringido = tbEsBasicoRestringido();
+
+  // 1) Toggle global: clase tb-plan-locked en body activa el CSS
+  if(restringido) document.body.classList.add('tb-plan-locked');
+  else document.body.classList.remove('tb-plan-locked');
+
+  // 2) Marcar las páginas exentas con clase tb-plan-libre
+  TB_PAGES_LIBRES.forEach(function(id){
+    var pg = document.getElementById(id);
+    if(pg) pg.classList.add('tb-plan-libre');
   });
-  // Si el usuario está parado en una página restringida cuando le bajan al plan básico,
-  // mandarlo al dashboard.
-  if(ocultar){
-    var actual = document.querySelector('.page.on');
-    if(actual && (actual.id==='page-reglas' || actual.id==='page-bot' || actual.id==='page-ejecucion')){
-      var dash = document.querySelector('.nav-i[onclick*="dashboard"]');
-      try { nav('dashboard', dash); } catch(e){}
-    }
+
+  // 3) Inyectar banner en cada página restringida (si no existe ya)
+  document.querySelectorAll('.page').forEach(function(pg){
+    if(TB_PAGES_LIBRES.indexOf(pg.id) >= 0) return;
+    if(pg.id === 'page-admin') return;
+    if(pg.querySelector('.tb-plan-banner')) return; // ya existe
+    var banner = document.createElement('div');
+    banner.className = 'tb-plan-banner';
+    banner.innerHTML = '<div class="tb-plan-banner-ico">🔒</div>'
+      + '<div class="tb-plan-banner-txt"><strong>Plan Básico - Solo Vista.</strong> '
+      + 'Esta función está disponible en el plan Prop. Solicita el cambio para usar todas las herramientas.</div>'
+      + '<button class="tb-plan-banner-btn" onclick="tbIrSolicitarPlan()">Solicitar Plan Prop</button>';
+    pg.insertBefore(banner, pg.firstChild);
+  });
+
+  // 4) Candados en items del menú lateral
+  document.querySelectorAll('.nav-i').forEach(function(item){
+    item.classList.remove('tb-nav-locked');
+  });
+  if(restringido){
+    document.querySelectorAll('.nav-i').forEach(function(item){
+      // Excepciones: Mi Cuenta y Administrador no llevan candado
+      var oc = item.getAttribute('onclick') || '';
+      if(oc.indexOf('navMiCuenta') >= 0) return;
+      if(oc.indexOf('navAdministrador') >= 0) return;
+      item.classList.add('tb-nav-locked');
+    });
+  }
+}
+
+// Atajo: lleva al usuario a Mi Cuenta → pestaña Pagos para solicitar Prop
+function tbIrSolicitarPlan(){
+  try {
+    if(typeof navMiCuenta === 'function') navMiCuenta('pagos');
+    setTimeout(function(){
+      if(typeof mostrarSolicitarPlan === 'function') mostrarSolicitarPlan();
+    }, 200);
+  } catch(e){
+    if(typeof toast === 'function') toast('Ve a Mi Cuenta → Pagos para solicitar Prop','Plan','gold');
   }
 }
 
