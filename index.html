@@ -1,5 +1,20 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v37 - Fix click cuenta demo (plan básico)
+Build: 2026-04-28
+Cambios desde v36:
+  PUNTO 1: Fix CSS que bloqueaba el click en la cuenta demo. La regla
+           de bloqueo "[onclick]" del modo solo-vista atrapaba también
+           a las .cc-card. Ahora se excluyen explícitamente:
+           - .cc-card (cuentas) NO se bloquean por el modo global,
+             se manejan individualmente con tb-cuenta-bloqueada.
+           - Botones "Volver" dentro de páginas tienen clase
+             tb-volver-allow para no bloquearse.
+  PUNTO 2: La cuenta demo del plan básico ahora SÍ entra al segundo
+           menú al hacer click. Adentro todo permanece solo-vista.
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v36 - Plan Básico: solo cuenta demo es clickeable
 Build: 2026-04-28
 Cambios desde v35:
@@ -158,7 +173,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v36</title>
+<title>TRADINGBEIS v37</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1890,16 +1905,24 @@ body.tb-plan-locked .page.on .tb-plan-banner{display:flex;}
 body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre){
   position:relative;
 }
-body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) button:not(.tb-plan-banner-btn):not(.l-tab):not(.tab-btn),
+body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) button:not(.tb-plan-banner-btn):not(.l-tab):not(.tab-btn):not(.tb-volver-allow),
 body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) input:not([type="hidden"]),
 body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) select,
 body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) textarea,
 body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) .toggle,
-body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) [onclick]:not(.tb-plan-banner-btn):not(.tab-btn):not(.l-tab){
+body.tb-plan-locked .page:not(#page-micuenta):not(.tb-plan-libre) [onclick]:not(.tb-plan-banner-btn):not(.tab-btn):not(.l-tab):not(.cc-card):not(.tb-volver-allow):not(.tb-cuenta-bloqueada){
   pointer-events:none !important;
   opacity:.55 !important;
   filter:grayscale(.4);
   cursor:not-allowed !important;
+}
+/* v37: Las cards de cuentas (cc-card) NO se bloquean por el modo solo-vista global,
+   se manejan por separado: la demo es clickeable, las otras llevan tb-cuenta-bloqueada */
+body.tb-plan-locked .cc-card:not(.tb-cuenta-bloqueada){
+  pointer-events:auto !important;
+  opacity:1 !important;
+  filter:none !important;
+  cursor:pointer !important;
 }
 /* Pestañas internas (sub-tabs) sí pueden cambiarse para que vean cada vista */
 body.tb-plan-locked .tab-btn{
@@ -1969,8 +1992,8 @@ body.tb-plan-locked .nav-i.tb-nav-locked::after{
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v36 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v36';
+console.log('%c[TB] TRADINGBEIS v37 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v37';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -2779,7 +2802,7 @@ function openModal(view){
   <div class="ph">
     <div><h2 style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);display:inline-block;"></span>Balance General Live</h2>
     <div class="ph-sub">Vision completa de todas tus cuentas Live</div></div>
-    <div class="ph-actions"><button class="btn-o btn-sm" onclick="volverCuentas()">← Volver</button></div>
+    <div class="ph-actions"><button class="btn-o btn-sm tb-volver-allow" onclick="volverCuentas()">← Volver</button></div>
   </div>
   <div id="bal-live-content"></div>
 </div>
@@ -2788,7 +2811,7 @@ function openModal(view){
   <div class="ph">
     <div><h2 style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--blue);box-shadow:0 0 8px var(--blue);display:inline-block;"></span>Balance General 1era Fase</h2>
     <div class="ph-sub">Vision completa de tus cuentas en 1era Fase</div></div>
-    <div class="ph-actions"><button class="btn-o btn-sm" onclick="volverCuentas()">← Volver</button></div>
+    <div class="ph-actions"><button class="btn-o btn-sm tb-volver-allow" onclick="volverCuentas()">← Volver</button></div>
   </div>
   <div id="bal-fase1-content"></div>
 </div>
@@ -2797,7 +2820,7 @@ function openModal(view){
   <div class="ph">
     <div><h2 style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;box-shadow:0 0 8px #a78bfa;display:inline-block;"></span>Balance General 2da Fase</h2>
     <div class="ph-sub">Vision completa de tus cuentas en 2da Fase</div></div>
-    <div class="ph-actions"><button class="btn-o btn-sm" onclick="volverCuentas()">← Volver</button></div>
+    <div class="ph-actions"><button class="btn-o btn-sm tb-volver-allow" onclick="volverCuentas()">← Volver</button></div>
   </div>
   <div id="bal-fase2-content"></div>
 </div>
@@ -2826,7 +2849,7 @@ function openModal(view){
   <div class="ph">
     <div><h2 style="display:flex;align-items:center;gap:8px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);display:inline-block;"></span>Balance General Cuenta Real</h2>
     <div class="ph-sub">Vision completa de tus cuentas reales</div></div>
-    <div class="ph-actions"><button class="btn-o btn-sm" onclick="volverCuentas()">← Volver</button></div>
+    <div class="ph-actions"><button class="btn-o btn-sm tb-volver-allow" onclick="volverCuentas()">← Volver</button></div>
   </div>
   <div id="bal-real-content"></div>
 </div>
@@ -11268,7 +11291,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v36</div>
+<div class="tb-version-tag" id="tb-version-tag">v37</div>
 
 </body>
 </html>
