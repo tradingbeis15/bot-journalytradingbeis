@@ -1,5 +1,20 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v36 - Plan Básico: solo cuenta demo es clickeable
+Build: 2026-04-28
+Cambios desde v35:
+  PUNTO 1: En plan básico, solo la cuenta demo (slot 0 Live) es
+           clickeable. Las otras 39 cuentas vacías quedan grises,
+           con candado, no clickeables. Si intentan clickearlas
+           sale toast "Solo puedes usar la cuenta demo".
+  PUNTO 2: Botón "Eliminar" oculto en plan básico para no eliminar
+           la cuenta demo por accidente.
+  PUNTO 3: Cuando admin cambia plan en realtime, las cuadrículas
+           de cuentas se re-renderizan al instante (candados
+           aparecen/desaparecen sin recargar).
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v35 - Cuenta Demo Básico + Fix Quemada + Fix Tildes JS
 Build: 2026-04-28
 Cambios desde v33:
@@ -143,7 +158,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v35</title>
+<title>TRADINGBEIS v36</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -368,6 +383,8 @@ function sbIniciarRealtime() {
       try { if(typeof admActualizarNavAdmin==='function') admActualizarNavAdmin(); } catch(e){}
       // v32: re-aplicar restricciones por si cambió el plan
       try { if(typeof tbAplicarRestriccionesPlan==='function') tbAplicarRestriccionesPlan(); } catch(e){}
+      // v36: re-renderizar cuadrículas de cuentas por si cambió el plan
+      try { if(typeof renderTipo==='function'){ renderTipo('live'); renderTipo('fase1'); renderTipo('fase2'); renderTipo('real'); } } catch(e){}
       if (typeof toast==='function') toast('Tu cuenta fue actualizada por el administrador ('+cambios.join(', ')+')','Sistema','gold');
     })
     .subscribe();
@@ -1933,12 +1950,27 @@ body.tb-plan-locked .nav-i.tb-nav-locked::after{
   right:-14px;
   font-size:10px;
 }
+/* v36: Plan Básico - cuentas vacías bloqueadas (no clickeables) */
+.cc-card.tb-cuenta-bloqueada{
+  cursor:not-allowed !important;
+  opacity:.45 !important;
+  filter:grayscale(.8);
+  pointer-events:auto !important; /* permite onclick para mostrar aviso */
+}
+.cc-card.tb-cuenta-bloqueada:hover{
+  border-color:var(--border) !important;
+  transform:none !important;
+}
+.cc-card.tb-cuenta-bloqueada .cc-add-icon{
+  font-size:22px;
+  filter:grayscale(0);
+}
 
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v35 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v35';
+console.log('%c[TB] TRADINGBEIS v36 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v36';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -6827,12 +6859,24 @@ function renderTipo(tipo){
         html+='<div class="cc-stat"><div class="cc-stat-lbl">Winrate</div><div class="cc-stat-val">'+wr+'%</div></div>';
         html+='</div>';
       }
-      html+='<button onclick="elimCuenta('+gi+',event)" style="background:var(--rdim);border:1px solid var(--red);border-radius:6px;padding:2px 9px;color:var(--red);font-size:9px;font-weight:600;cursor:pointer;width:100%;margin-top:4px;">Eliminar</button>';
+      // v36: ocultar botón Eliminar en plan básico (cuenta demo no se borra)
+      var _planEsBasicoElim = (typeof tbEsBasicoRestringido === 'function' && tbEsBasicoRestringido());
+      if(!_planEsBasicoElim){
+        html+='<button onclick="elimCuenta('+gi+',event)" style="background:var(--rdim);border:1px solid var(--red);border-radius:6px;padding:2px 9px;color:var(--red);font-size:9px;font-weight:600;cursor:pointer;width:100%;margin-top:4px;">Eliminar</button>';
+      }
       html+='</div>';
     } else {
-      html+='<div class="cc-card '+tipo+' vacia" onclick="nuevaCuenta('+gi+')">';
-      html+='<div class="cc-add"><div class="cc-add-icon">+</div><div class="cc-add-txt">'+tipo.charAt(0).toUpperCase()+tipo.slice(1)+' '+c.num+'</div></div>';
-      html+='</div>';
+      // v36: en plan básico, las cuentas vacías NO son clickeables (solo demo del slot 0 lo es)
+      var planEsBasico = (typeof tbEsBasicoRestringido === 'function' && tbEsBasicoRestringido());
+      if(planEsBasico){
+        html+='<div class="cc-card '+tipo+' vacia tb-cuenta-bloqueada" onclick="tbAvisoCuentaBloqueada()" title="Disponible en plan Prop">';
+        html+='<div class="cc-add"><div class="cc-add-icon">🔒</div><div class="cc-add-txt">'+tipo.charAt(0).toUpperCase()+tipo.slice(1)+' '+c.num+'</div></div>';
+        html+='</div>';
+      } else {
+        html+='<div class="cc-card '+tipo+' vacia" onclick="nuevaCuenta('+gi+')">';
+        html+='<div class="cc-add"><div class="cc-add-icon">+</div><div class="cc-add-txt">'+tipo.charAt(0).toUpperCase()+tipo.slice(1)+' '+c.num+'</div></div>';
+        html+='</div>';
+      }
     }
   });
   grid.innerHTML=html;
@@ -9360,6 +9404,13 @@ function tbIrSolicitarPlan(){
   }
 }
 
+// v36: Aviso cuando plan básico intenta clickear una cuenta bloqueada
+function tbAvisoCuentaBloqueada(){
+  if(typeof toast === 'function'){
+    toast('Solo puedes usar la cuenta demo. Solicita el plan Prop para crear más cuentas.','Plan Básico','gold');
+  }
+}
+
 // v35: Crear cuenta demo automática para plan Básico cuando no tiene operaciones.
 // Esto permite que el usuario navegue al "segundo menú" (Dashboard, Operaciones, etc.)
 // y conozca la app. La cuenta NO se persiste en Supabase (es solo visual).
@@ -11217,7 +11268,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v35</div>
+<div class="tb-version-tag" id="tb-version-tag">v36</div>
 
 </body>
 </html>
