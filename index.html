@@ -1,5 +1,28 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v33 - Plan Prop con Restricciones + Ortografía
+Build: 2026-04-27
+Cambios desde v32:
+  PUNTO 1: Plan PROP ahora tiene restricciones específicas:
+           - Item "Ejecución" del menú lateral: candado, entra y ve
+             la página pero todos los botones/inputs bloqueados.
+           - Sub-pestaña "Reglas" dentro de Bot: bloqueada (solo vista).
+           - Toggle "Gestión de Riesgo (Guardián)" en Conexión:
+             bloqueado, apagado por defecto, no se puede activar.
+  PUNTO 2: Plan VIP = acceso completo sin restricciones.
+  PUNTO 3: Plan BÁSICO sigue igual que v32 (todo bloqueado, solo vista,
+           Mi Cuenta funciona para que pueda solicitar plan).
+  PUNTO 4: Banner para Prop dice "Disponible en plan VIP" (en básico
+           sigue diciendo "Disponible en plan Prop").
+  PUNTO 5: Defensa en profundidad: botToggle('gestion') en Prop muestra
+           toast en lugar de activar.
+  PUNTO 6: Corrección ortográfica masiva en HTML y Bot:
+           números, código, gestión, día/días, máximo, mínimo,
+           operación, configuración, información, notificación, etc.
+           ~179 correcciones en HTML, ~38 en Bot.
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v32 - Sistema de Planes (Básico = Solo Vista)
 Build: 2026-04-27
 Cambios desde v31:
@@ -34,10 +57,10 @@ Cambios desde v30:
            Generar / Regenerar / Bloquear / Activar / Copiar.
   PUNTO 4: Mi Cuenta del usuario muestra su código + botón copiar
            + estado del bot (activo/bloqueado).
-  PUNTO 5: Realtime detecta cambios de bot_codigo y bot_activo
+  PUNTO 5: Realtime detecta cambios de bot_código y bot_activo
            (ej: si admin bloquea bot, usuario ve aviso al instante).
   REQUIERE en Supabase: 2 columnas nuevas en tabla usuarios:
-           bot_codigo TEXT
+           bot_código TEXT
            bot_activo BOOLEAN DEFAULT true
 ═══════════════════════════════════════════════════════════════════════
 
@@ -56,17 +79,17 @@ Cambios desde v29:
 TRADINGBEIS v24 - Notificaciones depuradas (8 tipos)
 Build: 2026-04-25
 Cambios desde v23:
-  PUNTO 1: Eliminadas notificaciones: proxima noticia, ultima operacion,
+  PUNTO 1: Eliminadas notificaciones: proxima noticia, ultima operación,
            sesion por terminar, drawdown semanal, SL pendiente, bot
-           desconectado, sin operar hoy, racha. Tambien sus toggles.
+           desconectado, sin operar hoy, racha. También sus toggles.
   PUNTO 2: Operaciones abiertas: ahora suma de AC[i].LIVE de cada cuenta
            (antes solo POS_LIVE global que estaba vacio).
-  PUNTO 3: Tiempo minimo: agrega segundos restantes "faltan 18s".
+  PUNTO 3: Tiempo mínimo: agrega segundos restantes "faltan 18s".
   PUNTO 4: Dentro de franja: ahora SOLO aparece si la regla esta activa.
-  PUNTO 5: Perdida 80% / Ganancia alcanzada: muestran numero de cuenta.
-  PUNTO 6: NUEVA notificacion: "Cuenta sin operar 10 dias / 15 dias",
-           aplica a TODAS las cuentas, muestra numero de cuenta y dias.
-  PUNTO 7: Dentro de franja: muestra numero de cuenta tambien.
+  PUNTO 5: Perdida 80% / Ganancia alcanzada: muestran número de cuenta.
+  PUNTO 6: NUEVA notificación: "Cuenta sin operar 10 días / 15 dias",
+           aplica a TODAS las cuentas, muestra número de cuenta y días.
+  PUNTO 7: Dentro de franja: muestra número de cuenta también.
 
 ---- Historico ----
 v09: importar historico (boton Operaciones), sync retiros broker
@@ -88,7 +111,7 @@ Cambios desde v26:
   - Arreglado: F5 en negro — fallback si INITIAL_SESSION no dispara
   - Arreglado: Realtime ahora refresca UI al instante sin cambiar de pagina
   - Arreglado: Lotaje ahora se guarda correctamente
-  - Mejorado: Toast de nueva operacion muestra simbolo y P&L
+  - Mejorado: Toast de nueva operación muestra simbolo y P&L
   - NOTA: Requiere ejecutar SQL update para agregar columna 'lotaje'
   - NOTA: Requiere recompilar cBot con version nueva (NetProfit + riesgo correcto)
 Creado por Daniel Pérez
@@ -99,7 +122,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v32</title>
+<title>TRADINGBEIS v33</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -153,7 +176,7 @@ async function sbCargarUsuario(userId) {
 // v31: Helpers para código de bot
 async function sbGuardarCodigoBot(userId, codigo, activo) {
   const updates = {};
-  if (codigo !== undefined) updates.bot_codigo = codigo;
+  if (código !== undefined) updates.bot_código = codigo;
   if (activo !== undefined) updates.bot_activo = activo;
   const { error } = await sbClient.from('usuarios').update(updates).eq('id', userId);
   return error;
@@ -313,9 +336,9 @@ function sbIniciarRealtime() {
       if ((d.plan_vence||'') !== (TB_USER.planVence||'')) { cambios.push('vencimiento'); TB_USER.planVence = d.plan_vence || ''; }
       if (d.estado !== TB_USER.estado) { cambios.push('estado'); TB_USER.estado = d.estado; }
       // v31: cambios en código y estado del bot
-      var nuevoBotCod = d.bot_codigo || '';
+      var nuevoBotCod = d.bot_código || '';
       var nuevoBotAct = d.bot_activo !== false;
-      if (nuevoBotCod !== (TB_USER.botCodigo||'')) { cambios.push('código de bot'); TB_USER.botCodigo = nuevoBotCod; }
+      if (nuevoBotCod !== (TB_USER.botCodigo||'')) { cambios.push('código de bot'); TB_USER.botCódigo = nuevoBotCod; }
       if (nuevoBotAct !== (TB_USER.botActivo!==false)) { cambios.push(nuevoBotAct?'bot activado':'bot bloqueado'); TB_USER.botActivo = nuevoBotAct; }
       if (!cambios.length) return;
       try { if(typeof mcCargarPerfil==='function') mcCargarPerfil(); } catch(e){}
@@ -569,7 +592,7 @@ async function doAutoLogin(user) {
       plan: data.plan || 'basico',
       planVence: data.plan_vence || '',
       foto: data.foto || '',
-      botCodigo: data.bot_codigo || '',
+      botCódigo: data.bot_código || '',
       botActivo: data.bot_activo !== false
     };
     var acRes = await sbCargarDatos(user.id, 'AC');
@@ -597,7 +620,7 @@ async function doAutoLogin(user) {
           var el = document.getElementById('tb-noti-tog-'+k);
           if(el){ el.classList.toggle('on', !!ff[k]); }
         });
-        // Tambien intentar cargar de Supabase si estuviera guardado ahi
+        // También intentar cargar de Supabase si estuviera guardado ahi
         if(typeof sbCargarDatos==='function' && TB_USER && TB_USER.id){
           sbCargarDatos(TB_USER.id,'noti_flags').then(function(res){
             if(res && res.data){
@@ -1351,7 +1374,7 @@ body.light-mode .faq-close-btn{background:#fff;border-color:#dde;color:#555;}
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE MOBILE (v10.22) - Se activa ≤ 900px
    ═══════════════════════════════════════════════════════════ */
-@media (max-width: 900px) {
+@medía (max-width: 900px) {
   /* ===== APP CONTENEDOR ===== */
   #app.open { flex-direction: column; height: 100vh; }
   html, body { height: 100%; overflow-x: hidden; }
@@ -1688,7 +1711,7 @@ body.light-mode .faq-close-btn{background:#fff;border-color:#dde;color:#555;}
 .mobile-more-backdrop { display: none; }
 #ops-cards { display: none; }
 .show-mobile { display: none; }
-@media (max-width: 900px) {
+@medía (max-width: 900px) {
   .mobile-nav { display: flex; }
   .mobile-more-sheet { display: block; }
 }
@@ -1854,11 +1877,47 @@ body.tb-plan-locked .nav-i.tb-nav-locked::after{
   opacity:.7;
 }
 
+/* v33: Plan Prop - candado en items específicos del menú aunque body NO tenga tb-plan-locked */
+.nav-i.tb-nav-locked::after{
+  content:" 🔒";
+  font-size:10px;
+  margin-left:4px;
+  opacity:.7;
+}
+
+/* v33: Plan Prop - bloqueo de páginas/secciones específicas (sin afectar al resto) */
+.tb-prop-locked button:not(.tb-plan-banner-btn):not(.tab-btn),
+.tb-prop-locked input:not([type="hidden"]),
+.tb-prop-locked select,
+.tb-prop-locked textarea,
+.tb-prop-locked .toggle:not(.tb-prop-toggle-locked),
+.tb-prop-locked [onclick]:not(.tb-plan-banner-btn):not(.tab-btn){
+  pointer-events:none !important;
+  opacity:.55 !important;
+  filter:grayscale(.4);
+  cursor:not-allowed !important;
+}
+
+/* v33: Toggle específico bloqueado en plan Prop (Guardián) */
+.tb-prop-toggle-locked{
+  pointer-events:none !important;
+  opacity:.5 !important;
+  cursor:not-allowed !important;
+  position:relative;
+}
+.tb-prop-toggle-locked::after{
+  content:"🔒";
+  position:absolute;
+  top:-3px;
+  right:-14px;
+  font-size:10px;
+}
+
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v32 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v32';
+console.log('%c[TB] TRADINGBEIS v33 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v33';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -2327,7 +2386,7 @@ function openModal(view){
         <div class="nav-i" onclick="nav('resumenes',this)"><span class="nav-ico">📋</span>Resumenes</div>
         <div class="nav-i" onclick="nav('operaciones',this)"><span class="nav-ico">📝</span>Operaciones</div>
         <div class="nav-i" onclick="nav('graficos',this)"><span class="nav-ico">📈</span>Graficos</div>
-        <div class="nav-g">Gestion</div>
+        <div class="nav-g">Gestión</div>
         <div class="nav-i" onclick="nav('calendario',this)"><span class="nav-ico">📅</span>Calendario</div>
         <div class="nav-i nav-ret" onclick="nav('retiros',this)"><span class="nav-ico">💰</span>Retiros</div>
         <div class="nav-i" onclick="nav('emociones',this)"><span class="nav-ico">😌</span>Emociones</div>
@@ -2337,7 +2396,7 @@ function openModal(view){
         <div class="nav-i" onclick="nav('reglas',this)"><span class="nav-ico">🛡</span>Reglas</div>
         <div class="nav-i" onclick="nav('bot',this)"><span class="nav-ico">🤖</span>Bot</div>
         <div class="nav-i" onclick="nav('ejecucion',this)"><span class="nav-ico">⚡</span>Ejecución</div>
-        <div class="nav-i" onclick="nav('config',this)"><span class="nav-ico">⚙️</span>Configuracion</div>
+        <div class="nav-i" onclick="nav('config',this)"><span class="nav-ico">⚙️</span>Configuración</div>
         <div class="nav-g">Perfil</div>
         <div class="nav-i" onclick="navMiCuenta('perfil',this)"><span class="nav-ico">👤</span>Mi Cuenta</div>
       </div>
@@ -2757,8 +2816,8 @@ function openModal(view){
     <div class="sc gt"><div class="sc-lbl">Mi Parte (Disp.)</div><div class="sc-val gld" id="dash-disp-miparte">$0.00</div><div class="sc-sub" id="dash-disp-miparte-sub">90% de disponible</div></div>
     <div class="sc gt"><div class="sc-lbl">Total Retirado</div><div class="sc-val gld" id="dash-total-ret">$0.00</div></div>
     <div class="sc gt"><div class="sc-lbl">Mi Parte (Division)</div><div class="sc-val gld" id="dash-mi-parte">$0.00</div></div>
-    <div class="sc bt"><div class="sc-lbl">Dias Actividad</div><div class="sc-val bl" id="dash-dias-act">0 dias</div></div>
-    <div class="sc gt" id="dash-dias-op-card"><div class="sc-lbl">Dias Operados</div><div class="sc-val" id="dash-dias-op" style="font-size:13px;">0 / 5</div><div class="sc-sub" id="dash-dias-op-sub">para retiro</div></div>
+    <div class="sc bt"><div class="sc-lbl">Días Actividad</div><div class="sc-val bl" id="dash-dias-act">0 días</div></div>
+    <div class="sc gt" id="dash-dias-op-card"><div class="sc-lbl">Días Operados</div><div class="sc-val" id="dash-dias-op" style="font-size:13px;">0 / 5</div><div class="sc-sub" id="dash-dias-op-sub">para retiro</div></div>
     <div class="sc bt"><div class="sc-lbl">Compras</div><div class="sc-val bl" id="dash-compras">0</div></div>
     <div class="sc"><div class="sc-lbl">Ventas</div><div class="sc-val" id="dash-ventas">0</div></div>
     <div class="sc bt"><div class="sc-lbl">Prom. / Trade</div><div class="sc-val" id="dash-avg-trade">$0.00</div></div>
@@ -2780,7 +2839,7 @@ function openModal(view){
     </div>
     <div class="next-ret">
       <div class="next-ret-lbl">📅 Fecha Programada</div>
-      <div class="next-ret-date" id="dash-prox-dias">-- dias</div>
+      <div class="next-ret-date" id="dash-prox-dias">-- días</div>
       <div class="next-ret-year" id="dash-prox-fecha" style="font-size:14px;font-weight:700;color:var(--gold);margin-top:5px;">--</div>
       <div style="font-size:10px;color:var(--w3);margin:14px 0 4px;letter-spacing:.06em;">Disponible Retiro</div>
       <div class="next-ret-amt" id="dash-prox-monto">$0.00</div>
@@ -2813,7 +2872,7 @@ function openModal(view){
   </div>
   <div class="panel" style="margin-bottom:11px;">
     <div class="pan-hd" style="cursor:pointer;" onclick="toggleOpForm()">
-      <div class="pan-t"><span class="dot g"></span>Nueva Operacion</div>
+      <div class="pan-t"><span class="dot g"></span>Nueva Operación</div>
       <button class="btn-o btn-sm" id="op-form-toggle-btn" onclick="event.stopPropagation();toggleOpForm()">▲ Recoger</button>
     </div>
     <div id="op-form-body" class="pan-bd">
@@ -2916,7 +2975,7 @@ function openModal(view){
   </div>
   <div id="gt-tiempo" style="display:none;">
     <div class="g2">
-      <div class="panel"><div class="pan-hd"><div class="pan-t"><span class="dot g"></span>P&L por Dia</div></div><div class="pan-bd"><div class="cw h200"><canvas id="g-wd"></canvas></div></div></div>
+      <div class="panel"><div class="pan-hd"><div class="pan-t"><span class="dot g"></span>P&L por Día</div></div><div class="pan-bd"><div class="cw h200"><canvas id="g-wd"></canvas></div></div></div>
       <div class="panel"><div class="pan-hd"><div class="pan-t"><span class="dot b"></span>Trades por Hora</div></div><div class="pan-bd"><div class="cw h200"><canvas id="g-hr"></canvas></div></div></div>
     </div>
   </div>
@@ -2940,8 +2999,8 @@ function openModal(view){
     <div class="ret-hcard c1"><div class="ret-hlbl">Mi Parte (Disp.)</div><div class="ret-hval c1" id="ret-disp-miparte">$0.00</div><div class="ret-hsub" id="ret-disp-miparte-sub">90% de disponible</div></div>
     <div class="ret-hcard c2"><div class="ret-hlbl">Total Retirado</div><div class="ret-hval c2" id="ret-total-ret">$2,934.84</div><div class="ret-hsub" id="ret-num-ret">2 retiros aprobados</div></div>
     <div class="ret-hcard c1"><div class="ret-hlbl">Mi Parte (Division)</div><div class="ret-hval c1" id="ret-mi-parte">$0.00</div><div class="ret-hsub" id="ret-mi-parte-sub">90% de retirado</div></div>
-    <div class="ret-hcard c3"><div class="ret-hlbl">Dias de Actividad</div><div class="ret-hval c3" id="ret-dias-act">0 dias</div><div class="ret-hsub" id="ret-dias-desde">--</div></div>
-    <div class="ret-hcard c4" id="ret-dias-op-card"><div class="ret-hlbl">Dias Operados</div><div class="ret-hval c4" id="ret-dias-op" style="font-size:15px;">0 / 5</div><div class="ret-hsub" id="ret-dias-op-sub">para retiro</div></div>
+    <div class="ret-hcard c3"><div class="ret-hlbl">Días de Actividad</div><div class="ret-hval c3" id="ret-dias-act">0 días</div><div class="ret-hsub" id="ret-dias-desde">--</div></div>
+    <div class="ret-hcard c4" id="ret-dias-op-card"><div class="ret-hlbl">Días Operados</div><div class="ret-hval c4" id="ret-dias-op" style="font-size:15px;">0 / 5</div><div class="ret-hsub" id="ret-dias-op-sub">para retiro</div></div>
   </div>
   <div class="g2">
     <div>
@@ -2964,7 +3023,7 @@ function openModal(view){
       <div class="slbl">Proximo Retiro</div>
       <div class="next-ret">
         <div class="next-ret-lbl">📅 Fecha Programada</div>
-        <div class="next-ret-date" id="ret-prox-dias">-- dias</div>
+        <div class="next-ret-date" id="ret-prox-dias">-- días</div>
         <div class="next-ret-year" id="ret-prox-fecha" style="font-size:14px;font-weight:700;color:var(--gold);margin-top:5px;">--</div>
         <div style="font-size:10px;color:var(--w3);margin:14px 0 4px;letter-spacing:.06em;">Disponible Retiro</div>
         <div class="next-ret-amt" id="ret-prox-monto">$0.00</div>
@@ -2974,7 +3033,7 @@ function openModal(view){
       </div>
     </div>
   </div>
-  <div class="info-box">DIAS FALTANTES: Dias configurados menos (Hoy menos Primera operacion). Cada retiro reinicia el ciclo. · Prog. - Solicitado - Aprobado - Rechazado (descuenta igual)</div>
+  <div class="info-box">DIAS FALTANTES: Días configurados menos (Hoy menos Primera operacion). Cada retiro reinicia el ciclo. · Prog. - Solicitado - Aprobado - Rechazado (descuenta igual)</div>
   <div class="slbl">Calendario de Retiros</div>
   <div class="ret-m-nav">
     <button class="cal-nav-btn" onclick="retNav(-1)">Anterior</button>
@@ -2992,7 +3051,7 @@ function openModal(view){
   <div class="g2">
     <div class="panel" style="margin-bottom:0;">
       <div class="pan-hd">
-        <div class="pan-t"><span class="dot g"></span>Registro del Dia</div>
+        <div class="pan-t"><span class="dot g"></span>Registro del Día</div>
         <input class="fi" type="date" id="emot-fecha" style="width:135px;padding:5px 8px;font-size:10px;">
       </div>
       <div class="pan-bd">
@@ -3032,7 +3091,7 @@ function openModal(view){
           <span class="err-tag" onclick="this.classList.toggle('on')">Mover SL</span>
         </div>
         <div class="fgrp">
-          <label class="flbl">Notas del dia</label>
+          <label class="flbl">Notas del día</label>
           <textarea class="fta" id="emot-notas" placeholder="Que aprendiste hoy?"></textarea>
         </div>
       </div>
@@ -3045,20 +3104,20 @@ function openModal(view){
 </div>
 
 <div class="page" id="page-calendario">
-  <div class="ph"><div><h2>📅 Calendario</h2><div class="ph-sub">P&L visual por dia · 2026</div></div></div>
+  <div class="ph"><div><h2>📅 Calendario</h2><div class="ph-sub">P&L visual por día · 2026</div></div></div>
   <div class="slbl">General</div>
   <div class="g4" style="margin-bottom:9px;">
     <div class="sc grt"><div class="sc-lbl">P&L Ano</div><div class="sc-val pos" id="cal-ano-pnl">$0.00</div></div>
     <div class="sc"><div class="sc-lbl">Total Trades</div><div class="sc-val" id="cal-ano-trades">0</div></div>
-    <div class="sc grt"><div class="sc-lbl">Dias Ganadores</div><div class="sc-val pos" id="cal-ano-win">0</div></div>
-    <div class="sc rt"><div class="sc-lbl">Dias Perdedores</div><div class="sc-val neg" id="cal-ano-loss">0</div></div>
+    <div class="sc grt"><div class="sc-lbl">Días Ganadores</div><div class="sc-val pos" id="cal-ano-win">0</div></div>
+    <div class="sc rt"><div class="sc-lbl">Días Perdedores</div><div class="sc-val neg" id="cal-ano-loss">0</div></div>
   </div>
   <div class="slbl" id="cal-mes-slbl">Mes Actual</div>
   <div class="g4" style="margin-bottom:13px;">
     <div class="sc gt"><div class="sc-lbl">P&L del Mes</div><div class="sc-val gld" id="cal-mes-pnl">--</div></div>
     <div class="sc"><div class="sc-lbl">Ops del Mes</div><div class="sc-val" id="cal-mes-trades">--</div></div>
-    <div class="sc grt"><div class="sc-lbl">Dias Ganadores</div><div class="sc-val pos" id="cal-mes-win">--</div></div>
-    <div class="sc rt"><div class="sc-lbl">Dias Perdedores</div><div class="sc-val neg" id="cal-mes-loss">--</div></div>
+    <div class="sc grt"><div class="sc-lbl">Días Ganadores</div><div class="sc-val pos" id="cal-mes-win">--</div></div>
+    <div class="sc rt"><div class="sc-lbl">Días Perdedores</div><div class="sc-val neg" id="cal-mes-loss">--</div></div>
   </div>
   <div class="cal-search-bar">
     <span style="font-size:9px;font-weight:600;color:var(--w3);white-space:nowrap;">Buscar fecha:</span>
@@ -3085,10 +3144,10 @@ function openModal(view){
         <div class="fgrp"><label class="flbl">Titulo</label><input class="fi" type="text" id="nf-titulo" placeholder="Resumen corto..."></div>
       </div>
       <div class="fg2">
-        <div class="fgrp"><label class="flbl">Categoria</label><select class="fsel" id="nf-cat"><option>Retiro</option><option>Plataforma</option><option>Operacion</option><option>Personal</option><option>Otro</option></select></div>
+        <div class="fgrp"><label class="flbl">Categoria</label><select class="fsel" id="nf-cat"><option>Retiro</option><option>Plataforma</option><option>Operación</option><option>Personal</option><option>Otro</option></select></div>
         <div class="fgrp"><label class="flbl">Estado</label><select class="fsel" id="nf-estado"><option>Pendiente</option><option>En proceso</option><option>Resuelto</option></select></div>
       </div>
-      <div class="fgrp" style="margin-bottom:9px;"><label class="flbl">Descripcion - Que paso?</label><textarea class="fta" id="nf-desc" placeholder="Describe la eventualidad..."></textarea></div>
+      <div class="fgrp" style="margin-bottom:9px;"><label class="flbl">Descripción - Que paso?</label><textarea class="fta" id="nf-desc" placeholder="Describe la eventualidad..."></textarea></div>
       <div class="fgrp" style="margin-bottom:11px;"><label class="flbl">Solucion / Resultado</label><textarea class="fta" id="nf-sol" placeholder="Como se resolvio?"></textarea></div>
       <div style="display:flex;gap:7px;justify-content:flex-end;">
         <button class="btn-o" onclick="hideNotaForm()">Cancelar</button>
@@ -3097,7 +3156,7 @@ function openModal(view){
     </div>
   </div>
   <div class="fbar" style="border-radius:8px 8px 0 0;border:1px solid var(--border);border-bottom:1px solid var(--border2);">
-    <select class="fsel" id="nf-fil-cat" onchange="renderNotas()" style="width:130px;"><option value="">Todas las categorias</option><option>Retiro</option><option>Plataforma</option><option>Operacion</option><option>Personal</option><option>Otro</option></select>
+    <select class="fsel" id="nf-fil-cat" onchange="renderNotas()" style="width:130px;"><option value="">Todas las categorias</option><option>Retiro</option><option>Plataforma</option><option>Operación</option><option>Personal</option><option>Otro</option></select>
     <select class="fsel" id="nf-fil-est" onchange="renderNotas()" style="width:130px;"><option value="">Todos los estados</option><option>Pendiente</option><option>En proceso</option><option>Resuelto</option></select>
     <span id="nota-count" style="font-size:10px;color:var(--w3);margin-left:auto;"></span>
   </div>
@@ -3144,7 +3203,7 @@ function openModal(view){
         <select class="fsel" id="cert-cat">
           <option value="Retiro">Retiro</option>
           <option value="Fase">Fase</option>
-          <option value="Operacion">Operacion</option>
+          <option value="Operacion">Operación</option>
           <option value="Otro">Otro</option>
         </select>
       </div>
@@ -3154,7 +3213,7 @@ function openModal(view){
       </div>
       <div class="fgrp" style="margin-bottom:16px;">
         <label class="flbl">Nota</label>
-        <textarea class="fta" id="cert-nota" placeholder="Descripcion del certificado..." style="min-height:60px;"></textarea>
+        <textarea class="fta" id="cert-nota" placeholder="Descripción del certificado..." style="min-height:60px;"></textarea>
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button class="btn-o" onclick="cancelCertModal()">Cancelar</button>
@@ -3227,7 +3286,7 @@ function openModal(view){
         </div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:6px;">
           <span style="font-size:16px;">⚠️</span>
-          <span style="font-size:10px;color:var(--yel);">Si las perdidas del dia superan este % del balance inicial del dia, la cuenta se considera <strong>QUEMADA</strong></span>
+          <span style="font-size:10px;color:var(--yel);">Si las perdidas del día superan este % del balance inicial del dia, la cuenta se considera <strong>QUEMADA</strong></span>
         </div>
       </div>
       <div>
@@ -3721,7 +3780,7 @@ function openModal(view){
 </div>
 
 <div class="page" id="page-config">
-  <div class="ph"><div><h2>⚙️ Configuracion</h2><div class="ph-sub">Perfil y preferencias</div></div>
+  <div class="ph"><div><h2>⚙️ Configuración</h2><div class="ph-sub">Perfil y preferencias</div></div>
     <div class="ph-actions"><button class="btn-g" onclick="saveConfig()">Guardar</button></div></div>
   <div style="margin-bottom:17px;">
     <div class="cfg-title">Foto de Perfil</div>
@@ -3836,7 +3895,7 @@ function openModal(view){
       <div class="fgrp"><label class="flbl">Modelo</label><input class="fi" type="text" id="cfg-modelo" value="Ultra"></div>
       <div class="fgrp"><label class="flbl">Costo $</label><input class="fi" type="number" id="cfg-costo" value="317"></div>
       <div class="fgrp"><label class="flbl">Fecha Compra</label><input class="fi" type="date" id="cfg-fcompra" value="2025-12-02"></div>
-      <div class="fgrp"><label class="flbl">Dias minimos por retiro</label><input class="fi" type="number" id="cfg-dias-min" value="5" min="1" max="90" placeholder="Ej: 5" oninput="updateDiasMin()"></div>
+      <div class="fgrp"><label class="flbl">Días minimos por retiro</label><input class="fi" type="number" id="cfg-dias-min" value="5" min="1" max="90" placeholder="Ej: 5" oninput="updateDiasMin()"></div>
     </div>
     <div style="margin-top:14px;">
       <div class="cfg-title">Division de Ganancias</div>
@@ -3916,7 +3975,7 @@ function openModal(view){
     <div class="cfg-title" style="color:var(--red);">Zona de Peligro</div>
     <div style="background:rgba(255,71,87,.05);border:1px solid rgba(255,71,87,.2);border-radius:8px;padding:16px;">
       <div style="font-size:12px;font-weight:600;color:var(--w2);margin-bottom:6px;">Resetear Cuenta</div>
-      <div style="font-size:10px;color:var(--w3);margin-bottom:12px;line-height:1.6;">Borra absolutamente todos los datos: operaciones, retiros, notas, emociones, configuracion. El programa quedara completamente en blanco.</div>
+      <div style="font-size:10px;color:var(--w3);margin-bottom:12px;line-height:1.6;">Borra absolutamente todos los datos: operaciones, retiros, notas, emociones, configuración. El programa quedara completamente en blanco.</div>
       <button onclick="resetCuenta()" style="background:var(--rdim);border:1px solid var(--red);border-radius:6px;padding:8px 18px;color:var(--red);font-size:11px;font-weight:700;cursor:pointer;">🗑️ Resetear Cuenta Completa</button>
     </div>
   </div>
@@ -4105,7 +4164,7 @@ function nav(name,el){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('.nav-i').forEach(function(n){n.classList.remove('on');});
   ge('page-'+name).classList.add('on');if(el)el.classList.add('on');
-  var T={dashboard:'Dashboard',resumenes:'Resumenes',operaciones:'Operaciones',graficos:'Graficos',retiros:'Retiros',emociones:'Emociones',calendario:'Calendario',notas:'Notas',reglas:'Reglas',config:'Configuracion'};
+  var T={dashboard:'Dashboard',resumenes:'Resumenes',operaciones:'Operaciones',graficos:'Graficos',retiros:'Retiros',emociones:'Emociones',calendario:'Calendario',notas:'Notas',reglas:'Reglas',config:'Configuración'};
   ge('tb-page').textContent=T[name]||name;
   if(name==='graficos'){gInit=false;setTimeout(initGraficos,80);}
   if(name==='resumenes'){buildResumenes();}
@@ -4333,7 +4392,7 @@ function saveTimezone(){
       sbGuardarDatos(TB_USER.id,'timezone',{tz:_userTimezone});
     }
   }catch(e){}
-  toast('Zona horaria guardada','Configuracion','gold');
+  toast('Zona horaria guardada','Configuración','gold');
 }
 // v06: cargar zona horaria desde datos_app al iniciar
 function loadTimezone(){
@@ -4391,7 +4450,7 @@ function tzISOString(){
 // v08 - API CENTRALIZADA DE HORA
 // ═══════════════════════════════════════════════════════════════════════
 // TODA hora generada o mostrada por el HTML pasa por estas funciones.
-// La zona se toma de _userTimezone (campo cfg-timezone en Configuracion).
+// La zona se toma de _userTimezone (campo cfg-timezone en Configuración).
 // El bot graba en UTC; el HTML convierte al mostrar con tbHoraDesdeUTC.
 //
 // API publica:
@@ -4496,7 +4555,7 @@ function setDate(){
   if(day)day.textContent=dateStr;
   if(tim)tim.textContent=timeStr;
   var old=ge('tb-date');if(old)old.textContent=dayName+' '+dd+'/'+mo+'/'+yr;
-  // Preview en configuracion
+  // Preview en configuración
   var tzP=ge('cfg-tz-preview');if(tzP)tzP.textContent=timeStr;
   var tzD=ge('cfg-tz-date');if(tzD)tzD.textContent=dateStr;
   // Inyectar fecha/hora en todos los encabezados de pagina visibles
@@ -4518,23 +4577,23 @@ function setDate(){
 // v18: SISTEMA DE NOTIFICACIONES TIPO TICKER
 // ════════════════════════════════════════════════════════════════════
 // Genera lista de notificaciones activas y las rota cada 3 segundos.
-// Cada tipo se puede activar/desactivar en Configuracion -> Notificaciones.
+// Cada tipo se puede activar/desactivar en Configuración -> Notificaciones.
 //
 // Tipos (15):
-//  1. proximo_retiro: dia anterior + dia del retiro
+//  1. proximo_retiro: día anterior + día del retiro
 //  2. retiro_aprobado: 24h despues de aprobado
 //  3. proxima_noticia: cuando falten <2h para una franja N1/N2/N3
-//  4. ultima_op_max: queda 1 operacion para llegar al maximo diario
+//  4. ultima_op_max: queda 1 operación para llegar al máximo diario
 //  5. ops_abiertas: cantidad de operaciones abiertas (siempre)
-//  6. tiempo_minimo: operacion abierta cerca de cerrarse antes de tiempo minimo
+//  6. tiempo_mínimo: operación abierta cerca de cerrarse antes de tiempo minimo
 //  7. perdida_cerca: pasaste 80% de la perdida diaria limite
 //  8. ganancia_alcanzada: alcanzaste objetivo de ganancia diaria
 //  9. sesion_termina: faltan 15min para cerrar horario configurado
 // 10. drawdown: drawdown semanal/mensual significativo
-// 11. sl_pendiente: operacion abierta sin SL hace tiempo
+// 11. sl_pendiente: operación abierta sin SL hace tiempo
 // 12. bot_desconectado: el bot no envia hace mas de 30s
 // 13. dentro_noticia: estas operando en zona N1/N2/N3
-// 14. sin_operar_hoy: felicitar dia de descanso
+// 14. sin_operar_hoy: felicitar día de descanso
 // 15. racha: racha de N ganadas o perdidas consecutivas
 //
 var TB_NOTI_LIST = [];
@@ -4549,11 +4608,11 @@ function tbCargarFlagsNoti(){
   // agregar flags entre versiones.
   var defaults = {
     proximo_retiro:true, retiro_aprobado:true,
-    ops_abiertas:true, tiempo_minimo:true,
+    ops_abiertas:true, tiempo_mínimo:true,
     perdida_cerca:true, ganancia_alcanzada:true,
     dentro_noticia:true,
     dias_sin_operar_10:true,
-    ops_dia:true, horario_operacional:true
+    ops_día:true, horario_operacional:true
   };
   if(TB_NOTI_FLAGS){
     // ya inicializado en esta sesion - asegurar todos los keys
@@ -4606,7 +4665,7 @@ function tbConstruirNotificaciones(){
     return;
   }
 
-  // 1) Proximo retiro (dia antes y dia del)
+  // 1) Proximo retiro (día antes y día del)
   if(f.proximo_retiro){
     AC.forEach(function(c, idxC){
       if(!c||!c.ok) return;
@@ -4681,7 +4740,7 @@ function tbConstruirNotificaciones(){
     }catch(e){ console.warn('[TB] noti ops_abiertas:', e); }
   }
 
-  // 6) Tiempo minimo - v27: avisa 30s DESPUES de cumplido (con debug)
+  // 6) Tiempo mínimo - v27: avisa 30s DESPUES de cumplido (con debug)
   if(f.tiempo_minimo){
     try{
       var tminOn = (ge('rtog-tmin')||{classList:{contains:function(){return false;}}}).classList.contains('on');
@@ -4711,7 +4770,7 @@ function tbConstruirNotificaciones(){
           }
         });
       }
-    }catch(e){ console.warn('[TB] noti tiempo_minimo error:', e); }
+    }catch(e){ console.warn('[TB] noti tiempo_mínimo error:', e); }
   }
 
   // 7) Perdida diaria al 80% del limite (v26: solo si regla activa)
@@ -4751,7 +4810,7 @@ function tbConstruirNotificaciones(){
     }catch(e){}
   }
 
-  // v26 NUEVA - Operaciones del dia (siempre visible si regla maxops activa)
+  // v26 NUEVA - Operaciones del día (siempre visible si regla maxops activa)
   if(f.ops_dia){
     try{
       var maxOn = (ge('rtog-maxops')||{classList:{contains:function(){return false;}}}).classList.contains('on');
@@ -4840,7 +4899,7 @@ function tbConstruirNotificaciones(){
     }catch(e){}
   }
 
-  // 16) 10 dias sin operar (cualquier cuenta)
+  // 16) 10 días sin operar (cualquier cuenta)
   if(f.dias_sin_operar_10){
     try{
       AC.forEach(function(c){
@@ -4852,7 +4911,7 @@ function tbConstruirNotificaciones(){
         var ult = fechas[fechas.length-1];
         var pp = ult.split('-');
         var fechaUlt = new Date(parseInt(pp[0]),parseInt(pp[1])-1,parseInt(pp[2]));
-        var dias = Math.floor((tzNow()-fechaUlt)/86400000);
+        var días = Math.floor((tzNow()-fechaUlt)/86400000);
         if(dias>=15){
           lista.push({icon:'🚨',texto:lbl+' - '+dias+' días sin operar',pulse:true,color:'var(--red)'});
         } else if(dias>=10){
@@ -4877,7 +4936,7 @@ function tbActualizarNotificaciones(){
   }
   bar.style.display = 'block';
 
-  // Rotacion cada 3 segundos
+  // Rotación cada 3 segundos
   var ahora = Date.now();
   if(ahora - TB_NOTI_LAST_ROTATE >= 3000 || !ge('tb-noti-text').textContent){
     TB_NOTI_LAST_ROTATE = ahora;
@@ -4932,7 +4991,7 @@ function calcDiasOperados(){
   var ultimoRetiro=null;
   var hist=typeof HIST_DATA!=='undefined'?HIST_DATA:[];
   hist.forEach(function(r){if(!r.rej&&r.fecha){if(!ultimoRetiro||r.fecha>ultimoRetiro)ultimoRetiro=r.fecha;}});
-  // Contar dias unicos con operaciones desde ese retiro
+  // Contar días unicos con operaciones desde ese retiro
   // v10.25: usamos >= para que el día del retiro cuente como día 1 del nuevo ciclo
   // (si apruebas retiro hoy y operas hoy, debe contar).
   var fechasOps=TRADES.map(function(t){return t[2];}).filter(Boolean);
@@ -4948,12 +5007,12 @@ function calcDiasOperados(){
     el.textContent=diasOp+' / '+min;
     el.style.color=listo?'var(--green)':'var(--yel)';
   }
-  if(sub)sub.textContent=listo?'✅ Listo para retirar':'dias para retiro';
-  // Tambien actualizar en retiros
+  if(sub)sub.textContent=listo?'✅ Listo para retirar':'días para retiro';
+  // También actualizar en retiros
   var rd=ge('ret-dias-op');
   if(rd){rd.textContent=diasOp+' / '+min;rd.style.color=listo?'var(--green)':'var(--yel)';}
   var rsub=ge('ret-dias-op-sub');
-  if(rsub)rsub.textContent=listo?'✅ Listo para retirar':'dias para retiro';
+  if(rsub)rsub.textContent=listo?'✅ Listo para retirar':'días para retiro';
   var rcard=ge('ret-dias-op-card');
   if(rcard)rcard.style.display=(c.tipo==='live'||c.tipo==='real')?'':'none';
 }
@@ -5012,7 +5071,7 @@ function updateAllStats(){
   var avgTrade=TRADES.length>0?pnlTotal/TRADES.length:0;
   var avgEl=ge('dash-avg-trade');
   if(avgEl){avgEl.textContent=(avgTrade>=0?'+':'')+avgTrade.toFixed(2);avgEl.style.color=avgTrade>=0?'var(--green)':'var(--red)';}
-  // Dias de actividad
+  // Días de actividad
   if(TRADES.length>0){
     var _fechas=TRADES.map(function(t){return t[2];}).filter(Boolean).sort();
     var _primera=_fechas[0];
@@ -5302,7 +5361,7 @@ function registerTrade(){
     sbGuardarDatos(TB_USER.id,'AC',AC);
     sbGuardarDatos(TB_USER.id,'hist_data',HIST_DATA);
   }
-  toast(esEdicion?'Operación actualizada':'Operacion registrada', esEdicion?'Editado':'Registrado','green');
+  toast(esEdicion?'Operación actualizada':'Operación registrada', esEdicion?'Editado':'Registrado','green');
 }
 function clearForm(){['f-sym','f-fecha','f-habre','f-hcierre','f-pabre','f-pcierre','f-pnl','f-lot','f-pips','f-riesgo','f-nota'].forEach(function(id){ge(id).value='';});ge('f-tipo').value='COMPRA';ge('f-est').value='GANADA';}
 
@@ -5388,7 +5447,7 @@ function delRetiro(idx){
   if(!confirm('Eliminar este retiro del historial?'))return;
   var r = HIST_DATA[idx];
 
-  // v15: si el retiro tiene key "mi_ri" -> tambien limpiar fr/fa/monto en RET_DATA
+  // v15: si el retiro tiene key "mi_ri" -> también limpiar fr/fa/monto en RET_DATA
   try {
     if(r && r.key){
       var parts = r.key.split('_');
@@ -5400,7 +5459,7 @@ function delRetiro(idx){
         RET_DATA[mi].rows[ri].monto = '';
         RET_DATA[mi].rows[ri].rej = false;
       }
-      // Tambien limpiar en la cuenta guardada
+      // También limpiar en la cuenta guardada
       if(typeof AC !== 'undefined' && AC && AC[CID]){
         if(AC[CID].R && AC[CID].R[mi] && AC[CID].R[mi].rows && AC[CID].R[mi].rows[ri]){
           AC[CID].R[mi].rows[ri].fr = '';
@@ -5829,15 +5888,15 @@ function calcReglas(){
 
   // ── PERDIDA DIARIA ──
   var pctPdia=limPdia>0?Math.min(perdidaDiaria/limPdia*100,100):0;
-  var fillPdia=ge('pdia-fill');if(fillPdia){fillPdia.style.width=pctPdia+'%';fillPdia.style.background=pctPdia>80?'var(--red)':pctPdia>50?'var(--yel)':'rgba(251,191,36,.5)';}
-  var vPdia=ge('pdia-val-lbl');if(vPdia){vPdia.textContent='$'+perdidaDiaria.toFixed(2)+' perdido hoy';vPdia.style.color=perdidaDiaria>0?'var(--red)':'var(--green)';}
-  var lPdia=ge('pdia-pct-lbl');if(lPdia){var dp=capitalInicial>0?(todayPnl/capitalInicial*100):0;lPdia.textContent=(dp>=0?'+':'')+dp.toFixed(2)+'%';lPdia.style.color=dp>=0?'var(--green)':'var(--red)';}
+  var fillPdia=ge('pdia-fill');if(fillPdia){fillPdía.style.width=pctPdia+'%';fillPdía.style.background=pctPdia>80?'var(--red)':pctPdia>50?'var(--yel)':'rgba(251,191,36,.5)';}
+  var vPdia=ge('pdia-val-lbl');if(vPdia){vPdía.textContent='$'+perdidaDiaria.toFixed(2)+' perdido hoy';vPdía.style.color=perdidaDiaria>0?'var(--red)':'var(--green)';}
+  var lPdia=ge('pdia-pct-lbl');if(lPdia){var dp=capitalInicial>0?(todayPnl/capitalInicial*100):0;lPdía.textContent=(dp>=0?'+':'')+dp.toFixed(2)+'%';lPdía.style.color=dp>=0?'var(--green)':'var(--red)';}
   var rsPdia=ge('rs-pdia');
   if(rsPdia){
-    if(perdidaDiaria>=limPdia){rsPdia.textContent='🔥 CUENTA QUEMADA · Limite diario superado';rsPdia.className='regla-st r-bad';}
-    else if(pctPdia>80){rsPdia.textContent='⚠️ Cerca del limite diario ('+pctPdia.toFixed(0)+'%)';rsPdia.className='regla-st r-warn';}
-    else if(perdidaDiaria===0){rsPdia.textContent='Sin perdidas hoy';rsPdia.className='regla-st r-ok';}
-    else{rsPdia.textContent='Dentro del limite';rsPdia.className='regla-st r-ok';}
+    if(perdidaDiaria>=limPdia){rsPdía.textContent='🔥 CUENTA QUEMADA · Limite diario superado';rsPdía.className='regla-st r-bad';}
+    else if(pctPdia>80){rsPdía.textContent='⚠️ Cerca del limite diario ('+pctPdía.toFixed(0)+'%)';rsPdía.className='regla-st r-warn';}
+    else if(perdidaDiaria===0){rsPdía.textContent='Sin perdidas hoy';rsPdía.className='regla-st r-ok';}
+    else{rsPdía.textContent='Dentro del limite';rsPdía.className='regla-st r-ok';}
   }
 
   // ── META GANANCIA ──
@@ -5881,7 +5940,7 @@ function calcReglas(){
   checkIdeaTrading(capitalInicial);
 }
 // ── IDEA DE TRADING ──────────────────────────────────────────────
-// Agrupa ops: mismo simbolo + mismo dia + misma direccion + cierres < 30 min entre si
+// Agrupa ops: mismo simbolo + mismo día + misma direccion + cierres < 30 min entre si
 // Si suma de perdidas del grupo > % configurado del balance inicial → ALERTA
 function checkIdeaTrading(capitalInicial){
   var pctIT=parseFloat(ge('r-idea-trading')?ge('r-idea-trading').value:2)||2;
@@ -6053,7 +6112,7 @@ function saveConfig(){
   if(fcompra){var fp=fcompra.split('-');u('dash-fcompra',fp[2]+'/'+fp[1]+'/'+fp[0].slice(2));}
   u('dash-capital','$'+capital.toLocaleString());
   updateAllStats();
-  toast('Configuracion guardada','Guardado','gold');
+  toast('Configuración guardada','Guardado','gold');
   updDashFases(AC[CID]);
 }
 var CD={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#0f0f17',borderColor:'#2a2a3e',borderWidth:1,titleColor:'#fff',bodyColor:'#c8c8d8',padding:7}},scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#666680',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#666680',font:{size:9}}}}};
@@ -6118,7 +6177,7 @@ function initGraficos(){
 }
 function gTab(name,el){['overview','simbolos','tiempo','dist'].forEach(function(t){var e=ge('gt-'+t);if(e)e.style.display='none';});document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('on');});var gt=ge('gt-'+name);if(gt)gt.style.display='block';el.classList.add('on');}
 function resetCuenta(){
-  if(!confirm('ATENCION: Esto borrara ABSOLUTAMENTE TODOS los datos.\n\nOperaciones, retiros, notas, emociones y configuracion quedaran en cero.\n\nEsta accion NO se puede deshacer.\n\nEscriba CONFIRMAR para continuar:'))return;
+  if(!confirm('ATENCION: Esto borrara ABSOLUTAMENTE TODOS los datos.\n\nOperaciones, retiros, notas, emociones y configuración quedaran en cero.\n\nEsta accion NO se puede deshacer.\n\nEscriba CONFIRMAR para continuar:'))return;
   var conf=prompt('Escribe CONFIRMAR para borrar todo:');
   if(conf!=='CONFIRMAR'){toast('Reseteo cancelado','Cancelado','red');return;}
   // Clear all data
@@ -6145,7 +6204,7 @@ function resetCuenta(){
   var tbr=document.querySelector('.tb-role');if(tbr)tbr.textContent='Trader · --';
   // Clear dashboard
   ['dash-empresa','dash-cuenta','dash-tamano','dash-modelo','dash-costo','dash-fcompra','dash-capital'].forEach(function(id){var e=ge(id);if(e)e.textContent='--';});
-  toast('Cuenta reseteada. Ingresa los nuevos datos en Configuracion.','Reset','red');
+  toast('Cuenta reseteada. Ingresa los nuevos datos en Configuración.','Reset','red');
   nav('config',document.querySelectorAll('.nav-i')[9]);
 }
 
@@ -6203,7 +6262,7 @@ function buildITPanel(){
   var nSuperados=grupos.filter(function(g){return g.riesgoTotal>limiteUSD;}).length;
   var nWarn=grupos.filter(function(g){return g.riesgoTotal>limiteUSD*0.75&&g.riesgoTotal<=limiteUSD;}).length;
   var h='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">';
-  h+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;"><div style="font-size:9px;color:var(--w3);margin-bottom:3px;">Riesgo Total Dia</div><div style="font-size:15px;font-weight:700;color:'+(totalRiesgo>limiteUSD?'var(--red)':'var(--gold)')+';">$'+totalRiesgo.toFixed(2)+'</div></div>';
+  h+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;"><div style="font-size:9px;color:var(--w3);margin-bottom:3px;">Riesgo Total Día</div><div style="font-size:15px;font-weight:700;color:'+(totalRiesgo>limiteUSD?'var(--red)':'var(--gold)')+';">$'+totalRiesgo.toFixed(2)+'</div></div>';
   h+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;"><div style="font-size:9px;color:var(--w3);margin-bottom:3px;">Limite '+pct+'%</div><div style="font-size:15px;font-weight:700;color:var(--gold);">$'+limiteUSD.toFixed(2)+'</div></div>';
   h+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;"><div style="font-size:9px;color:var(--w3);margin-bottom:3px;">Ideas detectadas</div><div style="font-size:15px;font-weight:700;color:var(--blue);">'+grupos.length+'</div></div>';
   h+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;"><div style="font-size:9px;color:var(--w3);margin-bottom:3px;">Superadas / Alertas</div><div style="font-size:15px;font-weight:700;"><span style="color:var(--red);">'+nSuperados+'</span> / <span style="color:var(--yel);">'+nWarn+'</span></div></div>';
@@ -6373,7 +6432,7 @@ function initWSF(){
 // Guardar datos actuales en cuenta activa
 function guardarActual(){
   var c = AC[CID]; if(!c) return;
-  // Solo guardar datos si la cuenta tiene empresa o numero (fue configurada)
+  // Solo guardar datos si la cuenta tiene empresa o número (fue configurada)
   if(c.empresa||c.ncuenta||c.ok){
     c.T = typeof TRADES!=='undefined'?TRADES.slice():[];
     c.H = typeof HIST_DATA!=='undefined'?HIST_DATA.slice():[];
@@ -6603,7 +6662,7 @@ function nuevaCuenta(idx){
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
   document.querySelectorAll('#nav-l2 .nav-i').forEach(function(n){n.classList.remove('on');});
   var cp=ge('page-config');if(cp)cp.classList.add('on');
-  var tbp=ge('tb-page');if(tbp)tbp.textContent='Configuracion';
+  var tbp=ge('tb-page');if(tbp)tbp.textContent='Configuración';
   var cfgNav=document.querySelector('#nav-l2 .nav-i[onclick*="config"]');if(cfgNav)cfgNav.classList.add('on');
   try{toast('Cuenta nueva · Ingresa los datos y presiona Guardar','Nueva Cuenta','gold');}catch(e){}
 }
@@ -6907,7 +6966,7 @@ function saveConfig(){
   guardarActual();
   renderTipo('live');renderTipo('fase1');renderTipo('fase2');renderTipo('real');
   if(typeof updateAllStats==='function') updateAllStats();
-  if(typeof toast==='function') toast('Configuracion guardada','Guardado','gold');
+  if(typeof toast==='function') toast('Configuración guardada','Guardado','gold');
 }
 
 // initApp - unica version consolidada
@@ -7162,14 +7221,14 @@ function renderBalFase(tipo){
     var gan=(c.T||[]).filter(function(t){return t[11]==='GANADA';}).length;
     var wr=ops>0?(gan/ops*100).toFixed(0):0;
 
-    // Dias antiguedad
+    // Días antiguedad
     var diasAct=0;
     if(c.T&&c.T.length){
       var fechas=c.T.map(function(t){return t[2];}).filter(Boolean).sort();
       if(fechas.length){var ini=new Date(fechas[0]);diasAct=Math.ceil((tzNow()-ini)/(1000*60*60*24));}
     }
 
-    // Dias restantes estimado
+    // Días restantes estimado
     var diasRest='--';
     if(ops>0&&diasAct>0&&pp<mG){
       var ganDia=pnl/diasAct;
@@ -7205,8 +7264,8 @@ function renderBalFase(tipo){
     html+='<div class="fase-stats">';
     html+='<div class="fase-stat"><div class="fase-stat-lbl">Trades</div><div class="fase-stat-val">'+ops+'</div></div>';
     html+='<div class="fase-stat"><div class="fase-stat-lbl">Winrate</div><div class="fase-stat-val '+(parseInt(wr)>=60?'ppos':parseInt(wr)<40?'pneg':'')+' ">'+wr+'%</div></div>';
-    html+='<div class="fase-stat"><div class="fase-stat-lbl">Antiguedad</div><div class="fase-stat-val">'+diasAct+' dias</div></div>';
-    html+='<div class="fase-stat"><div class="fase-stat-lbl">Dias para Meta</div><div class="fase-stat-val" style="color:var(--blue);">'+diasRest+'</div></div>';
+    html+='<div class="fase-stat"><div class="fase-stat-lbl">Antiguedad</div><div class="fase-stat-val">'+diasAct+' días</div></div>';
+    html+='<div class="fase-stat"><div class="fase-stat-lbl">Días para Meta</div><div class="fase-stat-val" style="color:var(--blue);">'+diasRest+'</div></div>';
     html+='</div></div>';
   });
   html+='</div>';
@@ -7509,7 +7568,7 @@ function tbCheckVencimiento(){
   var txt=document.getElementById('mc-alert-venc-text');
   if(!banner||!TB_USER.planVence)return;
   var dias=tbDiasHasta(TB_USER.planVence);
-  if(dias!==null&&dias<=3&&dias>=0){
+  if(dias!==null&&días<=3&&dias>=0){
     banner.style.display='flex';
     if(txt)txt.textContent='⚠️ Tu plan vence en '+(dias===0?'hoy':dias+' día'+(dias!==1?'s':''))+'. Realiza tu pago para continuar sin interrupciones.';
     // Mensaje automático solo si no se envió antes
@@ -7693,7 +7752,7 @@ function mcCargarPerfil(){
   // v31: Mi Bot · Código de Acceso
   var bc = document.getElementById('mc-bot-content');
   if(bc){
-    var bcod = u.botCodigo || '';
+    var bcod = u.botCódigo || '';
     var bact = u.botActivo !== false;
     var bh = '';
     if(bcod){
@@ -8044,7 +8103,7 @@ function admTab(name,el){
           desde:d.desde||'',rol:d.rol||'viewer',estado:d.estado||'pendiente',
           plan:d.plan||'basico',planVence:d.plan_vence||'',foto:d.foto||'',
           motivoRechazo:d.motivo_rechazo||'',
-          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCodigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
+          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCódigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
         };});
       }
       admRenderOverview();
@@ -8061,7 +8120,7 @@ function admTab(name,el){
           desde:d.desde||'',rol:d.rol||'viewer',estado:d.estado||'pendiente',
           plan:d.plan||'basico',planVence:d.plan_vence||'',foto:d.foto||'',
           motivoRechazo:d.motivo_rechazo||'',
-          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCodigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
+          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCódigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
         };});
       }
       admRenderUsuarios();
@@ -8140,11 +8199,11 @@ function admRenderOverview(){
       var h='';
       conVenc.slice(0,3).forEach(function(u){
         var dias=tbDiasHasta(u.planVence);
-        var color=dias<=3?'var(--red)':dias<=7?'var(--yel)':'var(--green)';
+        var color=días<=3?'var(--red)':días<=7?'var(--yel)':'var(--green)';
         h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">';
         h+='<div class="adm-user-avatar" style="width:32px;height:32px;font-size:11px;">'+(u.foto?'<img src="'+u.foto+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">':u.nombre.slice(0,2).toUpperCase())+'</div>';
         h+='<div style="flex:1;"><div style="font-size:11px;font-weight:600;color:var(--white);">'+u.nombre+'</div><div style="font-size:9px;color:var(--w3);">Vence: '+u.planVence+'</div></div>';
-        h+='<div style="font-size:12px;font-weight:700;color:'+color+';">'+(dias===0?'Hoy':dias<0?'Vencido':''+dias+'d')+'</div>';
+        h+='<div style="font-size:12px;font-weight:700;color:'+color+';">'+(dias===0?'Hoy':días<0?'Vencido':''+dias+'d')+'</div>';
         h+='</div>';
       });
       pv.innerHTML=h;
@@ -8211,7 +8270,7 @@ function admRenderUsuarios(){
       h+='<span class="mc-badge '+(u.estado==='activo'?'mc-badge-active':u.estado==='suspendido'?'mc-badge-suspended':'mc-badge-paused')+'">'+(u.estado==='activo'?'● Activo':u.estado==='suspendido'?'● Suspendido':'● Pausado')+'</span>';
       h+='<span class="adm-role-badge adm-role-'+u.rol+'">'+u.rol+'</span></div>';
       h+='<div style="font-size:9px;color:var(--w3);">✉ '+u.email+'</div>';
-      if(dias!==null)h+='<div style="font-size:9px;color:'+(dias<=3?'var(--red)':dias<=7?'var(--yel)':'var(--w3)')+';">Vence: '+u.planVence+(dias<=7?' ('+dias+'d)':'')+'</div>';
+      if(dias!==null)h+='<div style="font-size:9px;color:'+(días<=3?'var(--red)':días<=7?'var(--yel)':'var(--w3)')+';">Vence: '+u.planVence+(días<=7?' ('+dias+'d)':'')+'</div>';
       h+='</div>';
     });
     h+='</div>';
@@ -8416,7 +8475,7 @@ function admVerUsuario(userId){
   h+='</div>';
 
   // v31: Código de Bot (acceso al cTrader cBot)
-  var bcod = u.botCodigo || '';
+  var bcod = u.botCódigo || '';
   var bact = u.botActivo !== false;
   h+='<div class="panel" style="margin-bottom:11px;">';
   h+='<div class="pan-hd"><div class="pan-t"><span class="dot g"></span>🤖 Código de Bot</div></div>';
@@ -8564,10 +8623,10 @@ function admCambiarEstado(userId, nuevoEstado){
   // v31: Si se activa el usuario y no tiene código de bot, generarlo automáticamente
   var updates = {estado:nuevoEstado};
   if(nuevoEstado==='activo' && !u.botCodigo){
-    var nuevoCodigo = tbGenerarCodigoBot();
-    u.botCodigo = nuevoCodigo;
+    var nuevoCódigo = tbGenerarCodigoBot();
+    u.botCódigo = nuevoCodigo;
     u.botActivo = true;
-    updates.bot_codigo = nuevoCodigo;
+    updates.bot_código = nuevoCodigo;
     updates.bot_activo = true;
     tbRegistrarActividad(TB_USER.id,'admin','bot','Generó código de bot automático para '+u.nombre+': '+nuevoCodigo);
     tbEnviarMensaje('admin_sistema',userId,'Código de Bot','Tu código de acceso al bot es: '+nuevoCodigo+'\n\nÚsalo en el parámetro "Código de Acceso" de tu bot en cTrader.',true);
@@ -8608,8 +8667,8 @@ function admCambiarRol(userId){
 // v31: Funciones de Código de Bot
 function admGenerarCodigoBot(userId){
   var u=TB_USERS.filter(function(x){return x.id===userId;})[0];if(!u)return;
-  var codigo = tbGenerarCodigoBot();
-  u.botCodigo = codigo;
+  var código = tbGenerarCodigoBot();
+  u.botCódigo = codigo;
   u.botActivo = true;
   sbGuardarCodigoBot(userId, codigo, true).then(function(err){
     if(err){toast('Error: '+err.message,'Bot','red');return;}
@@ -8625,7 +8684,7 @@ function admRegenerarCodigoBot(userId){
   var u=TB_USERS.filter(function(x){return x.id===userId;})[0];if(!u)return;
   var codAnt = u.botCodigo;
   var codNue = tbGenerarCodigoBot();
-  u.botCodigo = codNue;
+  u.botCódigo = codNue;
   sbGuardarCodigoBot(userId, codNue, undefined).then(function(err){
     if(err){toast('Error: '+err.message,'Bot','red');return;}
     tbRegistrarActividad(TB_USER.id,'admin','bot','Regeneró código de bot para '+u.nombre+': '+codAnt+' → '+codNue);
@@ -9132,36 +9191,44 @@ function admActualizarNavAdmin(){
 // v32: SISTEMA DE PLANES (Básico = solo vista, Prop/VIP = uso completo)
 // ═══════════════════════════════════════════════════════════════════
 
-// Páginas que el usuario Básico SÍ puede usar normalmente (sin candado)
+// Páginas que CUALQUIER plan puede usar normalmente (sin candado nunca)
 var TB_PAGES_LIBRES = ['page-micuenta'];
 
-// Items del menú lateral que llevan candado en plan básico
-// (todo excepto Mi Cuenta y Administrador que se manejan aparte)
-var TB_NAV_RESTRINGIDOS = [];
+// v33: Páginas restringidas para plan PROP (puede ver pero no usar)
+//      Plan VIP: sin restricciones aquí.
+var TB_PAGES_BLOQUEADAS_PROP = ['page-ejecucion'];
 
-// Helper: detectar si plan es básico Y rol no es admin
+// Helper: detectar plan
+function tbEsAdmin(){ return TB_USER && TB_USER.rol === 'admin'; }
+function tbPlan(){ return (TB_USER && TB_USER.plan) ? TB_USER.plan : 'basico'; }
 function tbEsBasicoRestringido(){
   if(!TB_USER) return false;
-  if(TB_USER.rol === 'admin') return false;
-  return (TB_USER.plan === 'basico' || !TB_USER.plan);
+  if(tbEsAdmin()) return false;
+  return tbPlan() === 'basico';
+}
+function tbEsPropRestringido(){
+  if(!TB_USER) return false;
+  if(tbEsAdmin()) return false;
+  return tbPlan() === 'prop';
 }
 
 // Aplica restricciones visuales según el plan del usuario
 function tbAplicarRestriccionesPlan(){
   if(!TB_USER) return;
-  var restringido = tbEsBasicoRestringido();
+  var esBasico = tbEsBasicoRestringido();
+  var esProp = tbEsPropRestringido();
 
-  // 1) Toggle global: clase tb-plan-locked en body activa el CSS
-  if(restringido) document.body.classList.add('tb-plan-locked');
+  // 1) Modo solo vista global (plan básico): clase en body activa el CSS
+  if(esBasico) document.body.classList.add('tb-plan-locked');
   else document.body.classList.remove('tb-plan-locked');
 
-  // 2) Marcar las páginas exentas con clase tb-plan-libre
+  // 2) Marcar las páginas exentas con clase tb-plan-libre (siempre)
   TB_PAGES_LIBRES.forEach(function(id){
     var pg = document.getElementById(id);
     if(pg) pg.classList.add('tb-plan-libre');
   });
 
-  // 3) Inyectar banner en cada página restringida (si no existe ya)
+  // 3) Inyectar banner BÁSICO en cada página restringida (solo se ve si body tiene clase tb-plan-locked)
   document.querySelectorAll('.page').forEach(function(pg){
     if(TB_PAGES_LIBRES.indexOf(pg.id) >= 0) return;
     if(pg.id === 'page-admin') return;
@@ -9179,18 +9246,76 @@ function tbAplicarRestriccionesPlan(){
   document.querySelectorAll('.nav-i').forEach(function(item){
     item.classList.remove('tb-nav-locked');
   });
-  if(restringido){
+  if(esBasico){
+    // Plan básico: candado en TODO menos Mi Cuenta y Admin
     document.querySelectorAll('.nav-i').forEach(function(item){
-      // Excepciones: Mi Cuenta y Administrador no llevan candado
       var oc = item.getAttribute('onclick') || '';
       if(oc.indexOf('navMiCuenta') >= 0) return;
       if(oc.indexOf('navAdministrador') >= 0) return;
       item.classList.add('tb-nav-locked');
     });
+  } else if(esProp){
+    // Plan prop: candado solo en Ejecución
+    document.querySelectorAll('.nav-i').forEach(function(item){
+      var oc = item.getAttribute('onclick') || '';
+      if(oc.indexOf("'ejecucion'") >= 0) item.classList.add('tb-nav-locked');
+    });
+  }
+
+  // 5) v33: Plan Prop - bloquear páginas y secciones específicas
+  // Páginas restringidas Prop (Ejecución): clase de bloqueo total
+  TB_PAGES_BLOQUEADAS_PROP.forEach(function(id){
+    var pg = document.getElementById(id);
+    if(!pg) return;
+    if(esProp){
+      pg.classList.add('tb-prop-locked');
+      // Banner para Prop si no existe
+      if(!pg.querySelector('.tb-plan-banner-prop')){
+        var banner = document.createElement('div');
+        banner.className = 'tb-plan-banner tb-plan-banner-prop';
+        banner.innerHTML = '<div class="tb-plan-banner-ico">🔒</div>'
+          + '<div class="tb-plan-banner-txt"><strong>Plan Prop.</strong> '
+          + 'Esta función está disponible en el plan VIP.</div>'
+          + '<button class="tb-plan-banner-btn" onclick="tbIrSolicitarPlan()">Solicitar Plan VIP</button>';
+        pg.insertBefore(banner, pg.firstChild);
+      }
+    } else {
+      pg.classList.remove('tb-prop-locked');
+    }
+  });
+
+  // 6) v33: Plan Prop - bloquear sub-pestaña Reglas dentro de Bot
+  var secReglas = document.getElementById('bot-sec-reglas');
+  if(secReglas){
+    if(esProp){
+      secReglas.classList.add('tb-prop-locked');
+      if(!secReglas.querySelector('.tb-plan-banner-prop-reglas')){
+        var banner2 = document.createElement('div');
+        banner2.className = 'tb-plan-banner tb-plan-banner-prop-reglas';
+        banner2.innerHTML = '<div class="tb-plan-banner-ico">🔒</div>'
+          + '<div class="tb-plan-banner-txt"><strong>Plan Prop.</strong> '
+          + 'Las reglas de gestión del bot están disponibles en el plan VIP.</div>'
+          + '<button class="tb-plan-banner-btn" onclick="tbIrSolicitarPlan()">Solicitar Plan VIP</button>';
+        secReglas.insertBefore(banner2, secReglas.firstChild);
+      }
+    } else {
+      secReglas.classList.remove('tb-prop-locked');
+    }
+  }
+
+  // 7) v33: Plan Prop - bloquear toggle Guardián (gestión de riesgo) y forzar OFF por defecto
+  var togGestión = document.getElementById('tog-gestion');
+  if(togGestion){
+    if(esProp){
+      togGestión.classList.add('tb-prop-toggle-locked');
+      togGestión.classList.remove('on'); // forzar apagado siempre
+    } else {
+      togGestión.classList.remove('tb-prop-toggle-locked');
+    }
   }
 }
 
-// Atajo: lleva al usuario a Mi Cuenta → pestaña Pagos para solicitar Prop
+// Atajo: lleva al usuario a Mi Cuenta → pestaña Pagos para solicitar plan
 function tbIrSolicitarPlan(){
   try {
     if(typeof navMiCuenta === 'function') navMiCuenta('pagos');
@@ -9198,9 +9323,10 @@ function tbIrSolicitarPlan(){
       if(typeof mostrarSolicitarPlan === 'function') mostrarSolicitarPlan();
     }, 200);
   } catch(e){
-    if(typeof toast === 'function') toast('Ve a Mi Cuenta → Pagos para solicitar Prop','Plan','gold');
+    if(typeof toast === 'function') toast('Ve a Mi Cuenta → Pagos para solicitar plan','Plan','gold');
   }
 }
+
 
 // ─── HOOKS: registrar actividad automática en eventos del sistema ─
 // Hook quema de cuenta
@@ -9951,6 +10077,8 @@ function botInit() {
   ge('bot-ncuenta').value = (c && c.ncuenta) ? c.ncuenta : '--';
   // Cargar estado de toggles y reglas
   botLoadState();
+  // v33: re-aplicar restricciones por si el toggle Guardián se cargó activo en plan Prop
+  try { if(typeof tbAplicarRestriccionesPlan === 'function') tbAplicarRestriccionesPlan(); } catch(e){}
   // v09: NO sincronizar automaticamente; solo cuando el usuario lo pida
 }
 
@@ -9958,6 +10086,11 @@ function botInit() {
 function botToggle(func) {
   var el = ge('tog-' + func);
   if(!el) return;
+  // v33: bloqueo de Guardián (gestión de riesgo) en plan Prop
+  if(func === 'gestion' && typeof tbEsPropRestringido === 'function' && tbEsPropRestringido()){
+    if(typeof toast === 'function') toast('La Gestión de Riesgo está disponible en el plan VIP','Plan Prop','gold');
+    return;
+  }
   el.classList.toggle('on');
   botSaveState();
 }
@@ -9988,7 +10121,7 @@ function botSaveState() {
   if(!TB_USER || !TB_USER.id) return;
   var state = {
     registro: ge('tog-registro') ? ge('tog-registro').classList.contains('on') : false,
-    gestion:  ge('tog-gestion')  ? ge('tog-gestion').classList.contains('on')  : false
+    gestión:  ge('tog-gestion')  ? ge('tog-gestion').classList.contains('on')  : false
   };
   sbGuardarDatos(TB_USER.id, 'bot_state_' + _botCuentaKey(), state);
 }
@@ -10006,8 +10139,8 @@ function botSaveRules() {
   if(!TB_USER || !TB_USER.id) return;
   var rules = {
     maxops:      { on: ge('rtog-maxops')     ? ge('rtog-maxops').classList.contains('on')      : false, val: parseFloat(ge('br-maxops').value)||0 },
-    perddia:     { on: ge('rtog-perddia')    ? ge('rtog-perddia').classList.contains('on')     : false, val: parseFloat(ge('br-perddia').value)||0 },
-    gandia:      { on: ge('rtog-gandia')     ? ge('rtog-gandia').classList.contains('on')      : false, val: parseFloat(ge('br-gandia').value)||0 },
+    perddía:     { on: ge('rtog-perddia')    ? ge('rtog-perddia').classList.contains('on')     : false, val: parseFloat(ge('br-perddia').value)||0 },
+    gandía:      { on: ge('rtog-gandia')     ? ge('rtog-gandia').classList.contains('on')      : false, val: parseFloat(ge('br-gandia').value)||0 },
     gancuenta:   { on: ge('rtog-gancuenta')  ? ge('rtog-gancuenta').classList.contains('on')   : false, val: parseFloat(ge('br-gancuenta').value)||0 },
     maxlot:      { on: ge('rtog-maxlot')     ? ge('rtog-maxlot').classList.contains('on')      : false, val: parseFloat(ge('br-maxlot').value)||0 },
     horario:     { on: ge('rtog-horario')    ? ge('rtog-horario').classList.contains('on')     : false, desde: ge('br-horario-desde').value, hasta: ge('br-horario-hasta').value },
@@ -10042,7 +10175,7 @@ function botLoadState() {
   sbCargarDatos(TB_USER.id, 'bot_state_' + _botCuentaKey()).then(function(res){
     if(res && res.data) {
       if(res.data.registro && ge('tog-registro')) ge('tog-registro').classList.add('on');
-      if(res.data.gestion  && ge('tog-gestion'))  ge('tog-gestion').classList.add('on');
+      if(res.data.gestión  && ge('tog-gestion'))  ge('tog-gestion').classList.add('on');
     }
   });
   // Cargar reglas
@@ -10052,8 +10185,8 @@ function botLoadState() {
     function setTog(id, on) { var e=ge(id); if(e && on) e.classList.add('on'); }
     function setVal(id, v)  { var e=ge(id); if(e && v!==undefined) e.value=v; }
     if(r.maxops)      { setTog('rtog-maxops',    r.maxops.on);     setVal('br-maxops',    r.maxops.val); }
-    if(r.perddia)     { setTog('rtog-perddia',   r.perddia.on);    setVal('br-perddia',   r.perddia.val); }
-    if(r.gandia)      { setTog('rtog-gandia',    r.gandia.on);     setVal('br-gandia',    r.gandia.val); }
+    if(r.perddia)     { setTog('rtog-perddia',   r.perddía.on);    setVal('br-perddia',   r.perddía.val); }
+    if(r.gandia)      { setTog('rtog-gandia',    r.gandía.on);     setVal('br-gandia',    r.gandía.val); }
     if(r.gancuenta)   { setTog('rtog-gancuenta', r.gancuenta.on);  setVal('br-gancuenta', r.gancuenta.val); }
     if(r.maxlot)      { setTog('rtog-maxlot',    r.maxlot.on);     setVal('br-maxlot',    r.maxlot.val); }
     if(r.horario)     { setTog('rtog-horario',   r.horario.on);    setVal('br-horario-desde', r.horario.desde); setVal('br-horario-hasta', r.horario.hasta); }
@@ -10333,7 +10466,7 @@ function ejecLoadActive() {
   var key = 'ejec_active_' + String(c.ncuenta);
   sbCargarDatos(TB_USER.id, key).then(function(res){
     // v05 FIX: sbCargarDatos ya devuelve el valor PARSEADO en res.data
-    //         Antes el codigo leia res.data.valor.active (inexistente)
+    //         Antes el código leia res.data.valor.active (inexistente)
     //         Ahora lee res.data.active directamente
     if(res && res.data && res.data.active !== undefined){
       _ejecActive = !!res.data.active;
@@ -10378,7 +10511,7 @@ function ejecLoadConfig() {
     var key = 'ejec_cfg_' + String(c.ncuenta);
     sbCargarDatos(TB_USER.id, key).then(function(res){
       // v05 FIX: sbCargarDatos ya devuelve el valor PARSEADO en res.data
-      //         Antes el codigo leia res.data.valor (inexistente)
+      //         Antes el código leia res.data.valor (inexistente)
       //         Ahora lee res.data directamente como objeto de config
       if(res && res.data && typeof res.data === 'object'){
         _ejecConfig = res.data || {};
@@ -10753,8 +10886,8 @@ function posLiveCardHtml(r) {
   if(tieneSL){
     h += '<div class="pos-live-row"><span>Distancia:</span><b>' + r.sl_pips + ' pips</b></div>';
     h += '<div class="pos-live-row"><span>Riesgo actual:</span><b class="red">$' + parseFloat(r.riesgo_actual||0).toFixed(2) + '</b></div>';
-    if(r.sl_pips_maximo && r.sl_pips_maximo > r.sl_pips){
-      h += '<div class="pos-live-row"><span>Máx histórico:</span><b class="red">' + r.sl_pips_maximo + ' pips ($' + parseFloat(r.riesgo_maximo||0).toFixed(2) + ')</b></div>';
+    if(r.sl_pips_máximo && r.sl_pips_máximo > r.sl_pips){
+      h += '<div class="pos-live-row"><span>Máx histórico:</span><b class="red">' + r.sl_pips_máximo + ' pips ($' + parseFloat(r.riesgo_maximo||0).toFixed(2) + ')</b></div>';
     }
     h += '<div class="pos-live-row"><span>Colocado por:</span><b>' + (r.sl_fue_automatico ? 'Bot (auto)' : 'Tú') + '</b></div>';
   } else {
@@ -10987,7 +11120,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v32</div>
+<div class="tb-version-tag" id="tb-version-tag">v33</div>
 
 </body>
 </html>
