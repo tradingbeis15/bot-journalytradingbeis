@@ -7668,7 +7668,7 @@ function tbCheckVencimiento(){
   var txt=document.getElementById('mc-alert-venc-text');
   if(!banner||!TB_USER.planVence)return;
   var dias=tbDiasHasta(TB_USER.planVence);
-  if(dias!==null&&días<=3&&dias>=0){
+  if(dias!==null&&dias<=3&&dias>=0){
     banner.style.display='flex';
     if(txt)txt.textContent='⚠️ Tu plan vence en '+(dias===0?'hoy':dias+' día'+(dias!==1?'s':''))+'. Realiza tu pago para continuar sin interrupciones.';
     // Mensaje automático solo si no se envió antes
@@ -8299,11 +8299,11 @@ function admRenderOverview(){
       var h='';
       conVenc.slice(0,3).forEach(function(u){
         var dias=tbDiasHasta(u.planVence);
-        var color=días<=3?'var(--red)':días<=7?'var(--yel)':'var(--green)';
+        var color=dias<=3?'var(--red)':dias<=7?'var(--yel)':'var(--green)';
         h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">';
         h+='<div class="adm-user-avatar" style="width:32px;height:32px;font-size:11px;">'+(u.foto?'<img src="'+u.foto+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">':u.nombre.slice(0,2).toUpperCase())+'</div>';
         h+='<div style="flex:1;"><div style="font-size:11px;font-weight:600;color:var(--white);">'+u.nombre+'</div><div style="font-size:9px;color:var(--w3);">Vence: '+u.planVence+'</div></div>';
-        h+='<div style="font-size:12px;font-weight:700;color:'+color+';">'+(dias===0?'Hoy':días<0?'Vencido':''+dias+'d')+'</div>';
+        h+='<div style="font-size:12px;font-weight:700;color:'+color+';">'+(dias===0?'Hoy':dias<0?'Vencido':''+dias+'d')+'</div>';
         h+='</div>';
       });
       pv.innerHTML=h;
@@ -8370,7 +8370,7 @@ function admRenderUsuarios(){
       h+='<span class="mc-badge '+(u.estado==='activo'?'mc-badge-active':u.estado==='suspendido'?'mc-badge-suspended':'mc-badge-paused')+'">'+(u.estado==='activo'?'● Activo':u.estado==='suspendido'?'● Suspendido':'● Pausado')+'</span>';
       h+='<span class="adm-role-badge adm-role-'+u.rol+'">'+u.rol+'</span></div>';
       h+='<div style="font-size:9px;color:var(--w3);">✉ '+u.email+'</div>';
-      if(dias!==null)h+='<div style="font-size:9px;color:'+(días<=3?'var(--red)':días<=7?'var(--yel)':'var(--w3)')+';">Vence: '+u.planVence+(días<=7?' ('+dias+'d)':'')+'</div>';
+      if(dias!==null)h+='<div style="font-size:9px;color:'+(dias<=3?'var(--red)':dias<=7?'var(--yel)':'var(--w3)')+';">Vence: '+u.planVence+(dias<=7?' ('+dias+'d)':'')+'</div>';
       h+='</div>';
     });
     h+='</div>';
