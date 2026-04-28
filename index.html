@@ -1,5 +1,26 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v35 - Cuenta Demo Básico + Fix Quemada + Fix Tildes JS
+Build: 2026-04-28
+Cambios desde v33:
+  PUNTO 1: Plan Básico ahora tiene una cuenta Live demo automática
+           que se crea al iniciar sesión (slot 0 = primera Live).
+           Empresa "TRADINGBEIS DEMO", saldo 10.000, 10 operaciones
+           de ejemplo recientes (mezcla wins/losses). Marca demo:true.
+           El usuario puede navegar al segundo menú (Dashboard,
+           Operaciones, etc.) y conocer la app.
+  PUNTO 2: Plan Básico NO persiste cambios en Supabase (todo solo
+           vista, los datos demo no se guardan al cambiar plan).
+  PUNTO 3: Fix bug "cuenta quemada / pérdida diaria" mostrándose en
+           cuentas vacías sin datos. Ahora checkCuentaQuemada valida
+           que haya capital u operaciones antes de mostrar banner.
+  PUNTO 4: Fix de identificadores JS dañados en v33 por la corrección
+           ortográfica (var días, botCódigo, togGestión, lPdía,
+           rsPdía, gandía, vPdía, perddía, fillPdía, sl_pips_máximo,
+           res.data.gestión). Ahora todos sin tildes (son JS).
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v33 - Plan Prop con Restricciones + Ortografía
 Build: 2026-04-27
 Cambios desde v32:
@@ -17,7 +38,7 @@ Cambios desde v32:
   PUNTO 5: Defensa en profundidad: botToggle('gestion') en Prop muestra
            toast en lugar de activar.
   PUNTO 6: Corrección ortográfica masiva en HTML y Bot:
-           números, código, gestión, día/días, máximo, mínimo,
+           números, codigo, gestión, día/días, máximo, mínimo,
            operación, configuración, información, notificación, etc.
            ~179 correcciones en HTML, ~38 en Bot.
 ═══════════════════════════════════════════════════════════════════════
@@ -57,10 +78,10 @@ Cambios desde v30:
            Generar / Regenerar / Bloquear / Activar / Copiar.
   PUNTO 4: Mi Cuenta del usuario muestra su código + botón copiar
            + estado del bot (activo/bloqueado).
-  PUNTO 5: Realtime detecta cambios de bot_código y bot_activo
+  PUNTO 5: Realtime detecta cambios de bot_codigo y bot_activo
            (ej: si admin bloquea bot, usuario ve aviso al instante).
   REQUIERE en Supabase: 2 columnas nuevas en tabla usuarios:
-           bot_código TEXT
+           bot_codigo TEXT
            bot_activo BOOLEAN DEFAULT true
 ═══════════════════════════════════════════════════════════════════════
 
@@ -122,7 +143,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v33</title>
+<title>TRADINGBEIS v35</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -176,7 +197,7 @@ async function sbCargarUsuario(userId) {
 // v31: Helpers para código de bot
 async function sbGuardarCodigoBot(userId, codigo, activo) {
   const updates = {};
-  if (código !== undefined) updates.bot_código = codigo;
+  if (codigo !== undefined) updates.bot_codigo = codigo;
   if (activo !== undefined) updates.bot_activo = activo;
   const { error } = await sbClient.from('usuarios').update(updates).eq('id', userId);
   return error;
@@ -336,9 +357,9 @@ function sbIniciarRealtime() {
       if ((d.plan_vence||'') !== (TB_USER.planVence||'')) { cambios.push('vencimiento'); TB_USER.planVence = d.plan_vence || ''; }
       if (d.estado !== TB_USER.estado) { cambios.push('estado'); TB_USER.estado = d.estado; }
       // v31: cambios en código y estado del bot
-      var nuevoBotCod = d.bot_código || '';
+      var nuevoBotCod = d.bot_codigo || '';
       var nuevoBotAct = d.bot_activo !== false;
-      if (nuevoBotCod !== (TB_USER.botCodigo||'')) { cambios.push('código de bot'); TB_USER.botCódigo = nuevoBotCod; }
+      if (nuevoBotCod !== (TB_USER.botCodigo||'')) { cambios.push('código de bot'); TB_USER.botCodigo = nuevoBotCod; }
       if (nuevoBotAct !== (TB_USER.botActivo!==false)) { cambios.push(nuevoBotAct?'bot activado':'bot bloqueado'); TB_USER.botActivo = nuevoBotAct; }
       if (!cambios.length) return;
       try { if(typeof mcCargarPerfil==='function') mcCargarPerfil(); } catch(e){}
@@ -592,7 +613,7 @@ async function doAutoLogin(user) {
       plan: data.plan || 'basico',
       planVence: data.plan_vence || '',
       foto: data.foto || '',
-      botCódigo: data.bot_código || '',
+      botCodigo: data.bot_codigo || '',
       botActivo: data.bot_activo !== false
     };
     var acRes = await sbCargarDatos(user.id, 'AC');
@@ -1374,7 +1395,7 @@ body.light-mode .faq-close-btn{background:#fff;border-color:#dde;color:#555;}
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE MOBILE (v10.22) - Se activa ≤ 900px
    ═══════════════════════════════════════════════════════════ */
-@medía (max-width: 900px) {
+@media (max-width: 900px) {
   /* ===== APP CONTENEDOR ===== */
   #app.open { flex-direction: column; height: 100vh; }
   html, body { height: 100%; overflow-x: hidden; }
@@ -1711,7 +1732,7 @@ body.light-mode .faq-close-btn{background:#fff;border-color:#dde;color:#555;}
 .mobile-more-backdrop { display: none; }
 #ops-cards { display: none; }
 .show-mobile { display: none; }
-@medía (max-width: 900px) {
+@media (max-width: 900px) {
   .mobile-nav { display: flex; }
   .mobile-more-sheet { display: block; }
 }
@@ -1916,8 +1937,8 @@ body.tb-plan-locked .nav-i.tb-nav-locked::after{
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v33 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v33';
+console.log('%c[TB] TRADINGBEIS v35 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v35';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -4911,7 +4932,7 @@ function tbConstruirNotificaciones(){
         var ult = fechas[fechas.length-1];
         var pp = ult.split('-');
         var fechaUlt = new Date(parseInt(pp[0]),parseInt(pp[1])-1,parseInt(pp[2]));
-        var días = Math.floor((tzNow()-fechaUlt)/86400000);
+        var dias = Math.floor((tzNow()-fechaUlt)/86400000);
         if(dias>=15){
           lista.push({icon:'🚨',texto:lbl+' - '+dias+' días sin operar',pulse:true,color:'var(--red)'});
         } else if(dias>=10){
@@ -5888,15 +5909,15 @@ function calcReglas(){
 
   // ── PERDIDA DIARIA ──
   var pctPdia=limPdia>0?Math.min(perdidaDiaria/limPdia*100,100):0;
-  var fillPdia=ge('pdia-fill');if(fillPdia){fillPdía.style.width=pctPdia+'%';fillPdía.style.background=pctPdia>80?'var(--red)':pctPdia>50?'var(--yel)':'rgba(251,191,36,.5)';}
-  var vPdia=ge('pdia-val-lbl');if(vPdia){vPdía.textContent='$'+perdidaDiaria.toFixed(2)+' perdido hoy';vPdía.style.color=perdidaDiaria>0?'var(--red)':'var(--green)';}
-  var lPdia=ge('pdia-pct-lbl');if(lPdia){var dp=capitalInicial>0?(todayPnl/capitalInicial*100):0;lPdía.textContent=(dp>=0?'+':'')+dp.toFixed(2)+'%';lPdía.style.color=dp>=0?'var(--green)':'var(--red)';}
+  var fillPdia=ge('pdia-fill');if(fillPdia){fillPdia.style.width=pctPdia+'%';fillPdia.style.background=pctPdia>80?'var(--red)':pctPdia>50?'var(--yel)':'rgba(251,191,36,.5)';}
+  var vPdia=ge('pdia-val-lbl');if(vPdia){vPdia.textContent='$'+perdidaDiaria.toFixed(2)+' perdido hoy';vPdia.style.color=perdidaDiaria>0?'var(--red)':'var(--green)';}
+  var lPdia=ge('pdia-pct-lbl');if(lPdia){var dp=capitalInicial>0?(todayPnl/capitalInicial*100):0;lPdia.textContent=(dp>=0?'+':'')+dp.toFixed(2)+'%';lPdia.style.color=dp>=0?'var(--green)':'var(--red)';}
   var rsPdia=ge('rs-pdia');
   if(rsPdia){
-    if(perdidaDiaria>=limPdia){rsPdía.textContent='🔥 CUENTA QUEMADA · Limite diario superado';rsPdía.className='regla-st r-bad';}
-    else if(pctPdia>80){rsPdía.textContent='⚠️ Cerca del limite diario ('+pctPdía.toFixed(0)+'%)';rsPdía.className='regla-st r-warn';}
-    else if(perdidaDiaria===0){rsPdía.textContent='Sin perdidas hoy';rsPdía.className='regla-st r-ok';}
-    else{rsPdía.textContent='Dentro del limite';rsPdía.className='regla-st r-ok';}
+    if(perdidaDiaria>=limPdia){rsPdia.textContent='🔥 CUENTA QUEMADA · Limite diario superado';rsPdia.className='regla-st r-bad';}
+    else if(pctPdia>80){rsPdia.textContent='⚠️ Cerca del limite diario ('+pctPdia.toFixed(0)+'%)';rsPdia.className='regla-st r-warn';}
+    else if(perdidaDiaria===0){rsPdia.textContent='Sin perdidas hoy';rsPdia.className='regla-st r-ok';}
+    else{rsPdia.textContent='Dentro del limite';rsPdia.className='regla-st r-ok';}
   }
 
   // ── META GANANCIA ──
@@ -6453,7 +6474,8 @@ function guardarActual(){
   c.diasMin=parseInt(g('cfg-dias-min'))||5;
   if(c.empresa||c.ncuenta) c.ok=true;
   // Guardar todo en Supabase
-  if(TB_USER&&TB_USER.id){
+  // v35: si plan = básico no persistir (todo es solo vista, datos demo)
+  if(TB_USER&&TB_USER.id&&TB_USER.plan!=='basico'){
     sbGuardarDatos(TB_USER.id,'AC',AC);
     sbGuardarDatos(TB_USER.id,'CID',CID);
     sbGuardarDatos(TB_USER.id,'tb_users',TB_USERS);
@@ -6973,6 +6995,8 @@ function saveConfig(){
 function initApp(){
   initWSF();
   CID=0;
+  // v35: cargar cuenta demo automática para plan básico ANTES de cargarC
+  try { if(typeof tbCargarDemoBasico==='function') tbCargarDemoBasico(); } catch(e){}
   cargarC(0);
   updTop(AC[0]);
   var l1=document.getElementById('nav-l1');if(l1)l1.style.display='block';
@@ -7384,6 +7408,15 @@ function checkCuentaQuemada(c){
       +'<button onclick="cerrarBannerQuemada()" style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:6px 14px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">Entendido</button>';
     document.body.appendChild(banner);
   }
+  // v35: si la cuenta no tiene datos válidos (sin capital ni operaciones),
+  //      no mostrar banner - es una cuenta nueva sin configurar.
+  var capChk = c ? (c.capital||c.tamano||0) : 0;
+  var opsChk = c && c.T ? c.T.length : 0;
+  if(capChk <= 0 && opsChk === 0 && !c.quemadaManual){
+    banner.style.display='none';
+    if(c) c.quemada = false; // limpiar marca falsa si no tiene datos
+    return;
+  }
   if(c && c.quemada){
     banner.style.display='flex';
     var sub = document.getElementById('quemada-banner-sub');
@@ -7752,7 +7785,7 @@ function mcCargarPerfil(){
   // v31: Mi Bot · Código de Acceso
   var bc = document.getElementById('mc-bot-content');
   if(bc){
-    var bcod = u.botCódigo || '';
+    var bcod = u.botCodigo || '';
     var bact = u.botActivo !== false;
     var bh = '';
     if(bcod){
@@ -8103,7 +8136,7 @@ function admTab(name,el){
           desde:d.desde||'',rol:d.rol||'viewer',estado:d.estado||'pendiente',
           plan:d.plan||'basico',planVence:d.plan_vence||'',foto:d.foto||'',
           motivoRechazo:d.motivo_rechazo||'',
-          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCódigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
+          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCodigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
         };});
       }
       admRenderOverview();
@@ -8120,7 +8153,7 @@ function admTab(name,el){
           desde:d.desde||'',rol:d.rol||'viewer',estado:d.estado||'pendiente',
           plan:d.plan||'basico',planVence:d.plan_vence||'',foto:d.foto||'',
           motivoRechazo:d.motivo_rechazo||'',
-          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCódigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
+          pago:{monto:d.pago_monto||'',fecha:d.pago_fecha||'',tipo:d.pago_tipo||'',referencia:d.pago_referencia||'',comprobante:d.pago_comprobante||''},botCodigo:d.bot_codigo||'',botActivo:d.bot_activo!==false
         };});
       }
       admRenderUsuarios();
@@ -8475,7 +8508,7 @@ function admVerUsuario(userId){
   h+='</div>';
 
   // v31: Código de Bot (acceso al cTrader cBot)
-  var bcod = u.botCódigo || '';
+  var bcod = u.botCodigo || '';
   var bact = u.botActivo !== false;
   h+='<div class="panel" style="margin-bottom:11px;">';
   h+='<div class="pan-hd"><div class="pan-t"><span class="dot g"></span>🤖 Código de Bot</div></div>';
@@ -8623,10 +8656,10 @@ function admCambiarEstado(userId, nuevoEstado){
   // v31: Si se activa el usuario y no tiene código de bot, generarlo automáticamente
   var updates = {estado:nuevoEstado};
   if(nuevoEstado==='activo' && !u.botCodigo){
-    var nuevoCódigo = tbGenerarCodigoBot();
-    u.botCódigo = nuevoCodigo;
+    var nuevoCodigo = tbGenerarCodigoBot();
+    u.botCodigo = nuevoCodigo;
     u.botActivo = true;
-    updates.bot_código = nuevoCodigo;
+    updates.bot_codigo = nuevoCodigo;
     updates.bot_activo = true;
     tbRegistrarActividad(TB_USER.id,'admin','bot','Generó código de bot automático para '+u.nombre+': '+nuevoCodigo);
     tbEnviarMensaje('admin_sistema',userId,'Código de Bot','Tu código de acceso al bot es: '+nuevoCodigo+'\n\nÚsalo en el parámetro "Código de Acceso" de tu bot en cTrader.',true);
@@ -8667,8 +8700,8 @@ function admCambiarRol(userId){
 // v31: Funciones de Código de Bot
 function admGenerarCodigoBot(userId){
   var u=TB_USERS.filter(function(x){return x.id===userId;})[0];if(!u)return;
-  var código = tbGenerarCodigoBot();
-  u.botCódigo = codigo;
+  var codigo = tbGenerarCodigoBot();
+  u.botCodigo = codigo;
   u.botActivo = true;
   sbGuardarCodigoBot(userId, codigo, true).then(function(err){
     if(err){toast('Error: '+err.message,'Bot','red');return;}
@@ -8684,7 +8717,7 @@ function admRegenerarCodigoBot(userId){
   var u=TB_USERS.filter(function(x){return x.id===userId;})[0];if(!u)return;
   var codAnt = u.botCodigo;
   var codNue = tbGenerarCodigoBot();
-  u.botCódigo = codNue;
+  u.botCodigo = codNue;
   sbGuardarCodigoBot(userId, codNue, undefined).then(function(err){
     if(err){toast('Error: '+err.message,'Bot','red');return;}
     tbRegistrarActividad(TB_USER.id,'admin','bot','Regeneró código de bot para '+u.nombre+': '+codAnt+' → '+codNue);
@@ -9304,13 +9337,13 @@ function tbAplicarRestriccionesPlan(){
   }
 
   // 7) v33: Plan Prop - bloquear toggle Guardián (gestión de riesgo) y forzar OFF por defecto
-  var togGestión = document.getElementById('tog-gestion');
+  var togGestion = document.getElementById('tog-gestion');
   if(togGestion){
     if(esProp){
-      togGestión.classList.add('tb-prop-toggle-locked');
-      togGestión.classList.remove('on'); // forzar apagado siempre
+      togGestion.classList.add('tb-prop-toggle-locked');
+      togGestion.classList.remove('on'); // forzar apagado siempre
     } else {
-      togGestión.classList.remove('tb-prop-toggle-locked');
+      togGestion.classList.remove('tb-prop-toggle-locked');
     }
   }
 }
@@ -9325,6 +9358,70 @@ function tbIrSolicitarPlan(){
   } catch(e){
     if(typeof toast === 'function') toast('Ve a Mi Cuenta → Pagos para solicitar plan','Plan','gold');
   }
+}
+
+// v35: Crear cuenta demo automática para plan Básico cuando no tiene operaciones.
+// Esto permite que el usuario navegue al "segundo menú" (Dashboard, Operaciones, etc.)
+// y conozca la app. La cuenta NO se persiste en Supabase (es solo visual).
+function tbCargarDemoBasico(){
+  if(!TB_USER) return;
+  if(TB_USER.rol === 'admin') return;          // admin no necesita demo
+  if(TB_USER.plan !== 'basico') return;        // solo plan básico
+  if(!AC || !AC[0]) return;                    // AC no inicializado todavía
+  if(AC[0].T && AC[0].T.length > 0) return;    // ya tiene operaciones, no sobrescribir
+
+  // Datos demo coherentes
+  var hoy = new Date();
+  var d = function(diasAtras){
+    var x = new Date(hoy.getTime() - diasAtras*86400000);
+    return x.getFullYear()+'-'+('0'+(x.getMonth()+1)).slice(-2)+'-'+('0'+x.getDate()).slice(-2);
+  };
+
+  // Llenar slot 0 (primera Live) con datos demo
+  AC[0].ok = true;
+  AC[0].empresa = 'TRADINGBEIS DEMO';
+  AC[0].ncuenta = '0000001';
+  AC[0].tamano = 10000;
+  AC[0].capital = 10000;
+  AC[0].modelo = 'Estándar';
+  AC[0].costo = 0;
+  AC[0].fcompra = d(30);
+  AC[0].div = 90;
+  AC[0].estado = 'Live';
+  AC[0].nota = 'Cuenta demo de demostración. Solo vista. Solicita el plan Prop para crear tu cuenta real.';
+  AC[0].quemada = false;
+  AC[0].quemadaManual = false;
+  AC[0].metaG = 10;
+  AC[0].limP = 10;
+  AC[0].demo = true; // marca para distinguirla
+  AC[0].user = 'Demo';
+  AC[0].reglasOn = true;
+  AC[0].violOn = false;
+  AC[0].VIOLS = [];
+
+  // Operaciones de ejemplo - mezcla de wins y losses
+  // Estructura T: [accion, simbolo, fecha, hora, sl, tp, riesgoPct, pnl, lote, ...]
+  AC[0].T = [
+    ['Compra','EURUSD',d(28),'09:15:00',1.0820,1.0900,1.0,  85.50,0.10,'tendencia','exitoso','','',''],
+    ['Venta','GBPUSD', d(26),'14:30:00',1.2750,1.2680,1.0,  68.20,0.10,'reversion','exitoso','','',''],
+    ['Compra','XAUUSD',d(24),'10:45:00',2010.50,2025.00,1.5,-45.30,0.05,'tendencia','perdido','','',''],
+    ['Compra','EURUSD',d(20),'08:00:00',1.0855,1.0925,1.0,  72.80,0.10,'breakout','exitoso','','',''],
+    ['Venta','USDJPY', d(18),'15:20:00',149.20,148.50,1.0,  55.40,0.10,'reversion','exitoso','','',''],
+    ['Compra','EURUSD',d(15),'11:30:00',1.0890,1.0950,1.0, -38.20,0.10,'falso','perdido','','',''],
+    ['Venta','XAUUSD', d(12),'13:10:00',2030.00,2015.00,1.5, 92.10,0.05,'tendencia','exitoso','','',''],
+    ['Compra','GBPUSD',d(8), '09:50:00',1.2680,1.2750,1.0,  61.30,0.10,'tendencia','exitoso','','',''],
+    ['Venta','EURUSD', d(5), '16:00:00',1.0920,1.0850,1.0, -28.40,0.10,'reversion','perdido','','',''],
+    ['Compra','XAUUSD',d(2), '10:15:00',2018.00,2035.00,1.5, 58.60,0.05,'breakout','exitoso','','','']
+  ];
+
+  // Histórico (vacío, no es necesario para visualización básica)
+  AC[0].H = [];
+  AC[0].R = {};
+  AC[0].N = [];
+  AC[0].E = [];
+  AC[0].C = {};
+
+  console.log('[TB v35] Cuenta demo cargada para plan básico');
 }
 
 
@@ -10139,8 +10236,8 @@ function botSaveRules() {
   if(!TB_USER || !TB_USER.id) return;
   var rules = {
     maxops:      { on: ge('rtog-maxops')     ? ge('rtog-maxops').classList.contains('on')      : false, val: parseFloat(ge('br-maxops').value)||0 },
-    perddía:     { on: ge('rtog-perddia')    ? ge('rtog-perddia').classList.contains('on')     : false, val: parseFloat(ge('br-perddia').value)||0 },
-    gandía:      { on: ge('rtog-gandia')     ? ge('rtog-gandia').classList.contains('on')      : false, val: parseFloat(ge('br-gandia').value)||0 },
+    perddia:     { on: ge('rtog-perddia')    ? ge('rtog-perddia').classList.contains('on')     : false, val: parseFloat(ge('br-perddia').value)||0 },
+    gandia:      { on: ge('rtog-gandia')     ? ge('rtog-gandia').classList.contains('on')      : false, val: parseFloat(ge('br-gandia').value)||0 },
     gancuenta:   { on: ge('rtog-gancuenta')  ? ge('rtog-gancuenta').classList.contains('on')   : false, val: parseFloat(ge('br-gancuenta').value)||0 },
     maxlot:      { on: ge('rtog-maxlot')     ? ge('rtog-maxlot').classList.contains('on')      : false, val: parseFloat(ge('br-maxlot').value)||0 },
     horario:     { on: ge('rtog-horario')    ? ge('rtog-horario').classList.contains('on')     : false, desde: ge('br-horario-desde').value, hasta: ge('br-horario-hasta').value },
@@ -10175,7 +10272,7 @@ function botLoadState() {
   sbCargarDatos(TB_USER.id, 'bot_state_' + _botCuentaKey()).then(function(res){
     if(res && res.data) {
       if(res.data.registro && ge('tog-registro')) ge('tog-registro').classList.add('on');
-      if(res.data.gestión  && ge('tog-gestion'))  ge('tog-gestion').classList.add('on');
+      if(res.data.gestion  && ge('tog-gestion'))  ge('tog-gestion').classList.add('on');
     }
   });
   // Cargar reglas
@@ -10185,8 +10282,8 @@ function botLoadState() {
     function setTog(id, on) { var e=ge(id); if(e && on) e.classList.add('on'); }
     function setVal(id, v)  { var e=ge(id); if(e && v!==undefined) e.value=v; }
     if(r.maxops)      { setTog('rtog-maxops',    r.maxops.on);     setVal('br-maxops',    r.maxops.val); }
-    if(r.perddia)     { setTog('rtog-perddia',   r.perddía.on);    setVal('br-perddia',   r.perddía.val); }
-    if(r.gandia)      { setTog('rtog-gandia',    r.gandía.on);     setVal('br-gandia',    r.gandía.val); }
+    if(r.perddia)     { setTog('rtog-perddia',   r.perddia.on);    setVal('br-perddia',   r.perddia.val); }
+    if(r.gandia)      { setTog('rtog-gandia',    r.gandia.on);     setVal('br-gandia',    r.gandia.val); }
     if(r.gancuenta)   { setTog('rtog-gancuenta', r.gancuenta.on);  setVal('br-gancuenta', r.gancuenta.val); }
     if(r.maxlot)      { setTog('rtog-maxlot',    r.maxlot.on);     setVal('br-maxlot',    r.maxlot.val); }
     if(r.horario)     { setTog('rtog-horario',   r.horario.on);    setVal('br-horario-desde', r.horario.desde); setVal('br-horario-hasta', r.horario.hasta); }
@@ -10886,8 +10983,8 @@ function posLiveCardHtml(r) {
   if(tieneSL){
     h += '<div class="pos-live-row"><span>Distancia:</span><b>' + r.sl_pips + ' pips</b></div>';
     h += '<div class="pos-live-row"><span>Riesgo actual:</span><b class="red">$' + parseFloat(r.riesgo_actual||0).toFixed(2) + '</b></div>';
-    if(r.sl_pips_máximo && r.sl_pips_máximo > r.sl_pips){
-      h += '<div class="pos-live-row"><span>Máx histórico:</span><b class="red">' + r.sl_pips_máximo + ' pips ($' + parseFloat(r.riesgo_maximo||0).toFixed(2) + ')</b></div>';
+    if(r.sl_pips_maximo && r.sl_pips_maximo > r.sl_pips){
+      h += '<div class="pos-live-row"><span>Máx histórico:</span><b class="red">' + r.sl_pips_maximo + ' pips ($' + parseFloat(r.riesgo_maximo||0).toFixed(2) + ')</b></div>';
     }
     h += '<div class="pos-live-row"><span>Colocado por:</span><b>' + (r.sl_fue_automatico ? 'Bot (auto)' : 'Tú') + '</b></div>';
   } else {
@@ -11120,7 +11217,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v33</div>
+<div class="tb-version-tag" id="tb-version-tag">v35</div>
 
 </body>
 </html>
