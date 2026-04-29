@@ -1,5 +1,22 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v40 - HTML controla TODA la zona horaria
+Build: 2026-04-29
+Cambios desde v39:
+  PUNTO 1: ENFOQUE NUEVO Y SIMPLE:
+           - El BOT siempre graba en UTC (no aplica offset).
+           - El HTML siempre convierte UTC → zona del usuario al
+             recibir trades (vía tbConvertirHoraUTC + tbGetUserTzOffset).
+           - La zona horaria viene de "Configuración → Zona Horaria"
+             (variable _userTimezone, ej: America/Caracas).
+  PUNTO 2: Conversión UNA SOLA VEZ por trade (no doble como antes).
+           Aplicado en realtime trades_ctrader y sync manual.
+  PUNTO 3: Ya no importa cómo configura el usuario el offset del bot
+           ni qué plan tiene. El HTML siempre interpreta UTC y muestra
+           en la zona elegida.
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v39 - Fix doble conversión fecha + Importar Histórico
 Build: 2026-04-28
 Cambios desde v38:
@@ -214,7 +231,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v39</title>
+<title>TRADINGBEIS v40</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -2033,8 +2050,8 @@ body.tb-plan-locked .nav-i.tb-nav-locked::after{
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v39 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v39';
+console.log('%c[TB] TRADINGBEIS v40 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v40';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -10229,11 +10246,23 @@ function botSync(silent) {
       if(existentesIds[tid]){ duplicadas++; return; }
       existentesIds[tid] = true; // marcar para evitar dups dentro de la misma respuesta
 
-      // v39: bot v39+ ya graba en zona del usuario, NO convertir aquí.
-      //       (La doble conversión era el bug que restaba 2 días).
+      // v40: el bot graba en UTC. Convertimos UNA SOLA VEZ a zona del usuario.
       var fecha = row.fecha || '';
       var horaApertura = row.hora_apertura || '';
       var horaCierre = row.hora_cierre || '';
+      try {
+        // Usar la fecha+hora_cierre como "ancla" para calcular la fecha local correcta
+        if(horaCierre){
+          var conv = tbConvertirHoraUTC(horaCierre, fecha);
+          horaCierre = conv.hora;
+          fecha = conv.fecha; // fecha local basada en hora_cierre
+        }
+        // hora_apertura se convierte aparte usando la fecha original UTC
+        if(horaApertura){
+          var convA = tbConvertirHoraUTC(horaApertura, row.fecha || '');
+          horaApertura = convA.hora;
+        }
+      } catch(e){ console.warn('[BOT][sync] Error convirtiendo hora UTC:', e); }
 
       var trade = [
         0,
@@ -10475,8 +10504,21 @@ function botStartRealtime() {
         console.log('[TB] Realtime INSERT trades_ctrader recibido:', payload.new && payload.new.trade_id);
         var row = payload.new;
         if(!row) return;
-        // v39: bot v39+ ya graba en zona del usuario, NO convertir aquí.
-        //      (La doble conversión era el bug que restaba 2 días).
+        // v40: el bot graba en UTC. Convertimos UNA SOLA VEZ a zona del usuario.
+        var _fecha = row.fecha || '';
+        var _hAp = row.hora_apertura || '';
+        var _hCi = row.hora_cierre || '';
+        try {
+          if(_hCi){
+            var conv = tbConvertirHoraUTC(_hCi, _fecha);
+            _hCi = conv.hora;
+            _fecha = conv.fecha;
+          }
+          if(_hAp){
+            var convA = tbConvertirHoraUTC(_hAp, row.fecha || '');
+            _hAp = convA.hora;
+          }
+        } catch(e){ console.warn('[TB] Error convirtiendo hora UTC:', e); }
         // Buscar cuenta por ncuenta
         var cuentaIdx = -1;
         if(AC) AC.forEach(function(c,i){ if(c && c.ncuenta && String(c.ncuenta) === String(row.cuenta_id)) cuentaIdx=i; });
@@ -10485,9 +10527,9 @@ function botStartRealtime() {
         var newTrade = [
           0,
           (row.simbolo||'').toUpperCase(),
-          row.fecha || '',
-          row.hora_apertura || '',
-          row.hora_cierre || '',
+          _fecha,
+          _hAp,
+          _hCi,
           parseFloat(row.precio_apertura)||0,
           parseFloat(row.precio_cierre)||0,
           parseFloat(row.pnl)||0,
@@ -11331,7 +11373,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v39</div>
+<div class="tb-version-tag" id="tb-version-tag">v40</div>
 
 </body>
 </html>
