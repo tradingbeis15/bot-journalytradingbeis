@@ -1,5 +1,25 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v38 - Orden definitivo de operaciones
+Build: 2026-04-28
+Cambios desde v37:
+  PUNTO 1: Nueva función central tbOrdenarTrades(arr) usada en TODOS
+           los flujos donde se modifica c.T o TRADES.
+  PUNTO 2: Criterios de orden (3 niveles):
+           - Fecha (más reciente arriba)
+           - Hora de cierre (más reciente arriba dentro del día)
+           - Numeración: #1 = la más antigua, #N = la más reciente
+             (el número más alto aparece arriba).
+  PUNTO 3: Aplicado en: realtime trades_ctrader (operación del bot),
+           cargarC (carga de cuenta), inserción manual, eliminación
+           manual, importar histórico, sync manual.
+  PUNTO 4: Las fechas/horas están en zona horaria del usuario
+           (offset configurado, ej Caracas -4). El bot ya las graba
+           así desde v30. El sort funciona porque el formato es
+           ISO consistente: YYYY-MM-DD HH:MM:SS.
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v37 - Fix click cuenta demo (plan básico)
 Build: 2026-04-28
 Cambios desde v36:
@@ -173,7 +193,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v37</title>
+<title>TRADINGBEIS v38</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -1992,8 +2012,8 @@ body.tb-plan-locked .nav-i.tb-nav-locked::after{
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v37 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v37';
+console.log('%c[TB] TRADINGBEIS v38 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v38';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -5411,18 +5431,8 @@ function registerTrade(){
   // Agregar la nueva operación al array
   TRADES.push(nuevaOp);
 
-  // Ordenar SIEMPRE por fecha + hora de cierre descendente (más reciente arriba)
-  TRADES.sort(function(a,b){
-    var fechaA = a[2]||'';
-    var fechaB = b[2]||'';
-    var horaA = a[4]||'';
-    var horaB = b[4]||'';
-    var keyA = fechaA + ' ' + horaA;
-    var keyB = fechaB + ' ' + horaB;
-    if(keyA < keyB) return 1;
-    if(keyA > keyB) return -1;
-    return 0;
-  });
+  // v38: ordenar con función central (más reciente arriba)
+  tbOrdenarTrades(TRADES);
 
   // Limpiar flags de edición
   window._editandoIdx = null;
@@ -5476,10 +5486,13 @@ function editTrade(idx){
 function delTrade(idx){
   if(!confirm('Eliminar esta operacion?'))return;
   TRADES.splice(idx,1);
+  // v38: re-ordenar y renumerar después de eliminar
+  tbOrdenarTrades(TRADES);
   filterOps();updateAllStats();
   // PERSISTIR EN SUPABASE
   if(TB_USER&&TB_USER.id&&AC&&AC[CID]){
     AC[CID].T = TRADES.slice();
+    tbOrdenarTrades(AC[CID].T);
     sbGuardarDatos(TB_USER.id,'AC',AC);
   }
   toast('Eliminada','Eliminado','red');
@@ -6543,6 +6556,8 @@ function guardarActual(){
 // Cargar cuenta idx en variables globales
 function cargarC(idx){
   var c = AC[idx];
+  // v38: ordenar c.T antes de pasar a TRADES (asegura orden consistente)
+  if(c && c.T) tbOrdenarTrades(c.T);
   TRADES = c.T?c.T.slice():[];
   // RENUMERAR INVERTIDO: la más antigua (última en lista) es #1, la más reciente (primera) es la más alta
   TRADES.forEach(function(t,i){ t[0] = TRADES.length - i; });
@@ -7602,6 +7617,36 @@ function tbFechaLeg(f){
   var p=f.split(' ');var d=p[0].split('-');
   return d[2]+' '+mn[parseInt(d[1])-1]+' '+d[0]+(p[1]?' · '+p[1]:'');
 }
+// v38: Función central de ordenamiento de operaciones
+// Criterios: fecha desc → hora_cierre desc → renumera ascendente
+// (la #1 es la más antigua, la #N es la más reciente arriba)
+// La zona horaria del usuario ya está aplicada antes de llegar acá.
+// Estructura de cada trade (array):
+//   [0]=id, [1]=simbolo, [2]=fecha (YYYY-MM-DD), [3]=hora_apertura,
+//   [4]=hora_cierre, [5]=p_apertura, [6]=p_cierre, [7]=pnl, [8]=tipo,
+//   [9]=lote, [10]=pips, [11]=estado, [12]=riesgo, [13]=nota,
+//   [14]=trade_id, [15]=motivo
+function tbOrdenarTrades(arr){
+  if(!Array.isArray(arr) || arr.length === 0) return arr;
+  arr.sort(function(a,b){
+    var fa = (a && a[2]) ? String(a[2]) : '';
+    var fb = (b && b[2]) ? String(b[2]) : '';
+    var ha = (a && a[4]) ? String(a[4]) : '';
+    var hb = (b && b[4]) ? String(b[4]) : '';
+    var keyA = fa + ' ' + ha;
+    var keyB = fb + ' ' + hb;
+    if(keyA < keyB) return 1;
+    if(keyA > keyB) return -1;
+    return 0;
+  });
+  // Renumerar: la última en el array (más antigua) es #1, la primera (más reciente) es #length
+  var N = arr.length;
+  arr.forEach(function(t, i){
+    if(t) t[0] = N - i;
+  });
+  return arr;
+}
+
 function tbDiasHasta(fechaStr){
   if(!fechaStr)return null;
   var d=new Date(fechaStr+'T00:00:00');
@@ -10210,10 +10255,7 @@ function botSync(silent) {
       'omitidas(sin tid)='+omitidas);
 
     if(nuevas > 0) {
-      cuenta.T.sort(function(a,b){
-        var kA=(a[2]||'')+' '+(a[4]||''); var kB=(b[2]||'')+' '+(b[4]||'');
-        return kA<kB?1:kA>kB?-1:0;
-      });
+      tbOrdenarTrades(cuenta.T);
       if(AC[CID] && String(AC[CID].ncuenta) === ncuentaStr) {
         TRADES = cuenta.T.slice();
         try {
@@ -10462,10 +10504,7 @@ function botStartRealtime() {
         // Siempre guardar en la cuenta correspondiente
         if(!AC[cuentaIdx].T) AC[cuentaIdx].T = [];
         AC[cuentaIdx].T.push(newTrade);
-        AC[cuentaIdx].T.sort(function(a,b){
-          var kA=(a[2]||'')+' '+(a[4]||''); var kB=(b[2]||'')+' '+(b[4]||'');
-          return kA<kB?1:kA>kB?-1:0;
-        });
+        tbOrdenarTrades(AC[cuentaIdx].T);
         if(TB_USER && TB_USER.id) sbGuardarDatos(TB_USER.id,'AC',AC);
 
         // Si estamos en esa cuenta, actualizar TRADES y refrescar UI inmediatamente
@@ -11291,7 +11330,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v37</div>
+<div class="tb-version-tag" id="tb-version-tag">v38</div>
 
 </body>
 </html>
