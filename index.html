@@ -1,5 +1,26 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v39 - Fix doble conversión fecha + Importar Histórico
+Build: 2026-04-28
+Cambios desde v38:
+  PUNTO 1: BUG GRAVE arreglado: el HTML convertía fecha+hora UTC dos
+           veces cuando llegaban trades del bot. Una para hora_apertura
+           y otra para hora_cierre, cada una restaba un día. Resultado:
+           operación cerrada el día 28 quedaba grabada como día 26.
+           v39: el bot graba directamente en zona del usuario y el
+           HTML ya NO convierte (se quitó tbConvertirHoraUTC en
+           realtime, sync manual y hook fallback).
+  PUNTO 2: Bot v39 graba hora_apertura y hora_cierre en zona del
+           usuario (con offset aplicado). Igual que ya hacía con la
+           fecha. En OnPositionClosed e ImportarHistorico.
+  PUNTO 3: Bug "Importar Histórico se queda pegado": el polling de
+           órdenes solo corría en plan VIP. Ahora corre en PROP y VIP,
+           pero las órdenes de trading (BUY/SELL/CLOSE) solo se
+           ejecutan en VIP. IMPORT_HISTORY se permite en PROP y VIP
+           porque es solo lectura.
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v38 - Orden definitivo de operaciones
 Build: 2026-04-28
 Cambios desde v37:
@@ -193,7 +214,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v38</title>
+<title>TRADINGBEIS v39</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -2012,8 +2033,8 @@ body.tb-plan-locked .nav-i.tb-nav-locked::after{
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v38 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v38';
+console.log('%c[TB] TRADINGBEIS v39 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v39';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -10208,22 +10229,11 @@ function botSync(silent) {
       if(existentesIds[tid]){ duplicadas++; return; }
       existentesIds[tid] = true; // marcar para evitar dups dentro de la misma respuesta
 
-      // Convertir hora UTC -> zona del usuario (centralizado)
+      // v39: bot v39+ ya graba en zona del usuario, NO convertir aquí.
+      //       (La doble conversión era el bug que restaba 2 días).
       var fecha = row.fecha || '';
       var horaApertura = row.hora_apertura || '';
       var horaCierre = row.hora_cierre || '';
-      try {
-        if(horaApertura){
-          var tz1 = tbConvertirHoraUTC(horaApertura, fecha);
-          horaApertura = tz1.hora;
-          fecha = tz1.fecha;
-        }
-        if(horaCierre){
-          var tz2 = tbConvertirHoraUTC(horaCierre, fecha);
-          horaCierre = tz2.hora;
-          fecha = tz2.fecha;
-        }
-      } catch(e){ console.warn('[BOT][sync] Error convirtiendo hora UTC:', e); }
 
       var trade = [
         0,
@@ -10465,19 +10475,8 @@ function botStartRealtime() {
         console.log('[TB] Realtime INSERT trades_ctrader recibido:', payload.new && payload.new.trade_id);
         var row = payload.new;
         if(!row) return;
-        // v07: convertir hora UTC del bot a la zona horaria configurada
-        try {
-          if(row.hora_apertura){
-            var tz1 = tbConvertirHoraUTC(row.hora_apertura, row.fecha);
-            row.hora_apertura = tz1.hora;
-            row.fecha = tz1.fecha;
-          }
-          if(row.hora_cierre){
-            var tz2 = tbConvertirHoraUTC(row.hora_cierre, row.fecha);
-            row.hora_cierre = tz2.hora;
-            row.fecha = tz2.fecha;
-          }
-        } catch(e){ console.warn('[TB] Error convirtiendo hora UTC del trade:', e); }
+        // v39: bot v39+ ya graba en zona del usuario, NO convertir aquí.
+        //      (La doble conversión era el bug que restaba 2 días).
         // Buscar cuenta por ncuenta
         var cuentaIdx = -1;
         if(AC) AC.forEach(function(c,i){ if(c && c.ncuenta && String(c.ncuenta) === String(row.cuenta_id)) cuentaIdx=i; });
@@ -11297,13 +11296,14 @@ function botImportarHistorico() {
 })();
 
 // ══════════════════════════════════════════════════════════════
-// 6. Conversión de hora en trades nuevos (Realtime)
+// 6. Conversión de hora en trades nuevos (Realtime) - v39: DESACTIVADO
 // ══════════════════════════════════════════════════════════════
-// Hook al handler Realtime de trades_ctrader para aplicar conversión
-// de hora al insertar nuevas operaciones cerradas en las tablas
+// El bot v39+ ya graba en zona del usuario, así que NO se necesita
+// convertir nada aquí. Mantener este hook activo causaba doble
+// conversión y restaba días.
+/*
 (function(){
   function tryHookTz() {
-    // Si existe la función que procesa trades recibidos, la intervenimos
     if(typeof window.procesarTradeRecibido === 'function' && !window._tzHooked) {
       var origFn = window.procesarTradeRecibido;
       window.procesarTradeRecibido = function(row){
@@ -11326,11 +11326,12 @@ function botImportarHistorico() {
   var tzAtt=0;
   var tzIv = setInterval(function(){ tzAtt++; tryHookTz(); if(window._tzHooked || tzAtt>60) clearInterval(tzIv); }, 500);
 })();
+*/
 
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v38</div>
+<div class="tb-version-tag" id="tb-version-tag">v39</div>
 
 </body>
 </html>
