@@ -1,5 +1,25 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v42 - Generador de Bot Único por Usuario
+Build: 2026-04-29
+Cambios desde v41:
+  PUNTO 1: Nuevo generador de bots únicos. En el panel admin de cada
+           usuario aparece el botón "🎯 Generar Bot Único (.cs)" que
+           crea un archivo .cs personalizado:
+           - Clase con nombre aleatorio (ej: TradeJournalSyncX7K2)
+           - Mensajes de log distintos por usuario
+           - Notificaciones con prefijos diferentes
+           - Sin "TRADINGBEIS" ni "Daniel Pérez" en el código
+           - Código de acceso del usuario integrado como DefaultValue
+  PUNTO 2: Después de descargar el .cs, lo compilas en cTrader y
+           exportas a .algo para enviárselo al usuario. El usuario NO
+           ve el código fuente.
+  PUNTO 3: Para 5 usuarios → 5 bots completamente diferentes entre
+           sí (hash, nombres, comentarios). Imposible que las prop
+           firms detecten que vienen del mismo "padre".
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v41 - Admin = VIP fijo + 3 nuevas notificaciones
 Build: 2026-04-29
 Cambios desde v40:
@@ -247,7 +267,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v41</title>
+<title>TRADINGBEIS v42</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -2066,8 +2086,8 @@ body.tb-plan-locked .nav-i.tb-nav-locked::after{
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v41 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v41';
+console.log('%c[TB] TRADINGBEIS v42 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v42';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -8741,6 +8761,11 @@ function admVerUsuario(userId){
     else     h+='<button class="adm-action-btn success" onclick="admToggleBot(\''+userId+'\',true)">✅ Activar bot</button>';
     h+='<button class="adm-action-btn" onclick="admRegenerarCodigoBot(\''+userId+'\')">🔄 Regenerar código</button>';
     h+='</div>';
+    // v42: botón Generar Bot Único (.cs personalizado para este usuario)
+    h+='<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">';
+    h+='<div style="font-size:10px;color:var(--w3);margin-bottom:6px;line-height:1.4;">Genera un archivo <strong>.cs</strong> único para este usuario (clase, métodos y comentarios aleatorios). Después tú lo compilas en cTrader y exportas a <strong>.algo</strong> para enviárselo.</div>';
+    h+='<button class="adm-action-btn" style="background:rgba(212,168,67,.15);border-color:var(--gold);color:var(--gold);font-weight:700;" onclick="tbGenerarBotUnico(\''+userId+'\')">🎯 Generar Bot Único (.cs)</button>';
+    h+='</div>';
   } else {
     h+='<div style="font-size:11px;color:var(--w2);margin-bottom:8px;">Este usuario aún no tiene código de bot.</div>';
     h+='<button class="adm-action-btn success" onclick="admGenerarCodigoBot(\''+userId+'\')">⚡ Generar código de bot</button>';
@@ -11441,10 +11466,2039 @@ function botImportarHistorico() {
 })();
 */
 
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// v42: GENERADOR DE BOT ÚNICO
+// ═══════════════════════════════════════════════════════════════════════
+// Cada usuario aprobado puede tener un bot personalizado con código
+// distinto al de los demás. Esto evita que las prop firms detecten que
+// es el mismo bot copiado en varias cuentas.
+//
+// El template del bot está embebido aquí como string multilinea.
+// Los marcadores {{X}} se reemplazan con valores aleatorios al
+// generar el bot para un usuario.
+// ═══════════════════════════════════════════════════════════════════════
+
+var TB_BOT_TEMPLATE = `// ═══════════════════════════════════════════════════════════════════════
+// {{HEADER_TITLE}}
+// {{HEADER_AUTHOR}}
+//
+// CAMBIOS v41 (desde v40):
+//   1. ResolverCodigoAccesoAsync ahora trae también el campo "rol".
+//   2. Si rol == "admin", el bot fuerza _userPlan = "vip" sin importar
+//      qué tenga en el campo plan de la BD. Así el admin nunca tiene
+//      restricciones de plan.
+//
+// CAMBIOS v40 (desde v39):
+//   1. Bot graba siempre en UTC. HTML convierte a zona usuario.
+//
+// CAMBIOS v39 (desde v38):
+//   1. (revertido en v40)
+//
+// CAMBIOS v38 (desde v37):
+//   1. Solo actualización de versión visible para mantener sincronía
+//      con el HTML v38. La lógica del bot no cambia.
+//
+// CAMBIOS v36 (desde v35):
+//   1. Solo actualización de versión visible para mantener sincronía
+//      con el HTML v36. La lógica del bot no cambia.
+//
+// CAMBIOS v35 (desde v33):
+//   1. Solo actualización de versión visible para mantener sincronía
+//      con el HTML v35. La lógica del bot no cambia.
+//
+// CAMBIOS v33 (desde v32):
+//   1. Plan BASICO: el bot NO funciona (igual que v32).
+//   2. Plan PROP: el bot SI graba operaciones cerradas, pero NO procesa
+//      ordenes desde HTML y NO aplica reglas de gestion (Guardian).
+//   3. Plan VIP: el bot funciona completo (graba + ordenes + reglas).
+//   4. Correccion ortografica en mensajes.
+//
+// CAMBIOS v32 (desde v31):
+//   1. ResolverCodigoAccesoAsync ahora trae también el campo "plan".
+//   2. PLAN BASICO: el bot NO graba operaciones, NO procesa ordenes,
+//      NO aplica reglas. Muestra mensaje "Plan Basico no permite uso
+//      del bot" al iniciar.
+//   3. PLAN PROP / VIP: funciona normal (graba + ordenes + reglas).
+//   4. Variable interna _userPlan guarda el plan resuelto.
+//
+// CAMBIOS v31 (desde v30):
+//   1. Reemplazado parametro "User ID" por "Código Acceso".
+//      El usuario ya no pega su UUID feo. Pone un código corto tipo
+//      "TBV-ABCD-EFGH" que recibe del administrador desde el panel admin.
+//   2. Al iniciar el bot (OnStart), se consulta Supabase con ese codigo
+//      para obtener el UUID real del usuario y verificar que el bot
+//      este activo. Si el código es invalido o el bot esta bloqueado,
+//      el bot muestra error y no graba operaciones.
+//   3. El UUID resuelto se guarda en _resolvedUserId y se usa internamente
+//      en todas las llamadas a Supabase.
+//   4. El parametro Código Acceso viene VACIO por defecto. El usuario
+//      DEBE configurarlo o el bot no funciona.
+//   5. Verificación peridoca cada 60 minutos por si el admin bloquea
+//      el bot mientras esta corriendo (BotCodeCheckTimer).
+//
+// CAMBIOS v30 (desde v29):
+//   1. Fix grabación de fecha en zona horaria del usuario.
+//      Antes: DateTime.UtcNow.ToString("yyyy-MM-dd") -> guardaba día UTC.
+//      Si una operación cerraba a las 8pm Caracas (UTC-4), en UTC ya era
+//      día siguiente y se grababa con fecha equivocada.
+//      Ahora: UserToday() usa el offset configurado del usuario.
+//      Aplicado en OnPositionClosed (operación cerrada en vivo) y en
+//      el bloque de importar histórico (RecuperarHistorial).
+//      Las horas (hora_apertura, hora_cierre) ya estaban bien, no se tocan.
+//
+// CAMBIOS v21 (desde v20):
+//   1. Logs detallados en SendToSupabaseAsync para diagnosticar por que
+//      no se graban operaciones. Ahora muestra:
+//      - Si URL/Key están vacias
+//      - Status code de Supabase si responde error
+//      - Body de la respuesta de error
+//      - Excepciones de red
+//   2. Log antes de enviar en OnPositionClosed con trade_id, UserId
+//      parcial y estado de URL.
+//
+// CAMBIOS v20 (desde v19):
+//   1. Print de debug al inicio de OnPositionClosed para confirmar
+//      que el evento se dispara cuando se cierra una operación.
+//   2. ELIMINADA la deteccion automatica de retiros del broker
+//      (CheckRetirosBalance ya no se llama). Causaba falsos positivos
+//      cuando se perdía una operacion: el balance bajaba y el bot lo
+//      registraba como retiro en hist_data.
+//      Los retiros vuelven a ser SOLO MANUALES desde el HTML.
+//   3. ELIMINADO el handler IMPORT_RETIROS en el bot.
+//
+// CAMBIOS v19 (desde v18):
+//   1. Nuevo parametro "Offset Horario Usuario (horas)" en config del cBot.
+//      Permite que las reglas trabajen con la zona del usuario en vez de UTC.
+//      Default 0 (UTC). Para Caracas/UTC-4 poner -4. Para Argentina poner -3.
+//   2. ContarOpsHoy, PerdidaHoy, GananciaHoy ahora usan UserToday() en
+//      vez de DateTime.UtcNow.ToString. Esto evita que operaciones de
+//      ayer (en zona del usuario) cuenten como "hoy" porque UTC esta
+//      adelantado.
+//   3. Franjas de noticias N1/N2/N3 y Horario operacional usan la hora
+//      del usuario también (UserNow().ToString("HH:mm")).
+//
+// CAMBIOS v17 (desde v16):
+//   1. REVERTIDA la pre-validacion de SL/TP automatico al estilo v11.
+//      v12-v16 anadieron pre-validacion que bloqueaba el envio en BTC
+//      y otros simbolos volatiles -> el bot esperaba para siempre y
+//      nunca colocaba el SL.
+//      Ahora: enviar siempre que sea el momento, si falla el callback
+//      revertir flag para reintentar (igual que v11).
+//      Si la posicion ya tiene SL puesto, es exito real.
+//      "Nothing to amend" también se trata como exito.
+//
+// CAMBIOS v16 (desde v15):
+//   1. Aumentar colchon de seguridad para distancia minima en SL/TP auto.
+//      Antes: max(Spread*2, PipSize*5). Era muy poco para BTC/indices.
+//      Ahora: max(Spread*5, PipSize*20, 0.1% del precio).
+//   2. Si callback responde "InvalidRequest" y la posicion no tiene SL:
+//      NO reintentar. Loguear una vez y mantener flag para no spammar.
+//
+// CAMBIOS v14 (desde v13):
+//   1. Bot: tratar error "Nothing to amend" como exito.
+//      cTrader devuelve este error cuando se intenta modificar una posicion
+//      con valores que ya estaban aplicados (ya se habia hecho antes la
+//      modificacion). No es un fallo real. v14 lo detecta y no reintenta.
+//
+// CAMBIOS v13 (desde v12):
+//   1. Fix race condition SL/TP automatico:
+//      - Si ModifyPositionAsync responde con error pero la posicion YA
+//        tiene SL puesto cuando llega la respuesta, NO reintentar.
+//        (Evita la doble notificación: una en rojo "fallo" y otra en
+//        verde "ejecutado".)
+//
+// CAMBIOS v12 (desde v11):
+//   1. Pre-validacion de distancia minima antes de enviar SL/TP automatico.
+//      - Verifica que SL/TP esten del lado correcto del precio actual
+//        (Buy: SL < bid, TP > bid; Sell: SL > ask, TP < ask).
+//      - Verifica que la distancia al bid/ask sea >= MinDistance del broker.
+//      - Si no se cumple, NO envia la modificacion y reintenta al siguiente
+//        tick. Esto evita el "InvalidRequest" en el log cuando el precio se
+//        mueve cerca del SL/TP en BTC, indices, oro, etc.
+//      - Solo loguea info cada 10 segundos en vez de cada tick.
+//
+// CAMBIOS v11 (desde v07):
+//   1. Nuevo comando IMPORT_RETIROS (ver nota tecnica abajo).
+//   2. Reporte de progreso durante IMPORT_HISTORY:
+//      - Cada 5 trades procesados (y al final), el bot escribe en
+//        ordenes_pendientes.motivo_rechazo: "PROG:X/Y" donde X=hechos, Y=total.
+//      - El HTML lo escucha por realtime y mueve la barra de progreso.
+//
+// CAMBIOS v07 (desde v05):
+//   1. Deteccion automatica de retiros del broker.
+//      - Trackea Account.Balance entre ticks y detecta caidas de balance
+//        que no correspondan a cierres de posiciones (=retiro).
+//      - Inserta el retiro en datos_app.hist_data con la misma estructura
+//        que usa el HTML manualmente: {key, num, fecha, label, monto, rej, nota, nota_user, origen}
+//      - Antifalsos positivos: solo si la caida es > $0.01 y no hay
+//        un cierre de posicion en los ultimos 3 segundos por ese monto.
+//      - Antiduplicado: revisa hist_data antes de insertar; si ya existe
+//        un retiro con la misma fecha y monto, NO inserta.
+//
+// CAMBIOS v05 (desde v04):
+//   1. Print version corregido (v04 decia "v03" hardcoded)
+//   2. SL automatico ahora normaliza precio a Digits del simbolo
+//      (evita InvalidRequest en simbolos como DOW)
+//   3. SL automatico valida MinDistance del broker antes de enviar
+//   4. ModifyPositionAsync con callback - solo marca _slAutoPlaced
+//      si la modificacion fue exitosa (evita estado inconsistente)
+//   5. Nueva regla: TP automatico junto con SL automatico, en pips
+//      configurables. Respeta TP manual si la posicion ya lo tiene.
+//      Lee parametro tp_auto_pips desde datos_app.
+//
+// CAMBIOS v04 (desde v03):
+//   PUNTO 4: PublicarPosicionesLiveAsync ahora publica en PARALELO
+//            con Task.WhenAll. Antes era secuencial y con 3+ posiciones
+//            la ultima tardaba tanto que el HTML la filtraba.
+//   PUNTO 5: Watchdog de _procesandoOrden. Si una orden se queda
+//            bloqueada por mas de 30 segundos, resetea el flag para
+//            desbloquear la cola. Antes una sola orden colgada
+//            bloqueaba el resto (3ra, 4ta... se quedaban "esperando").
+//   PUNTO 5: Si UpdateOrdenEstadoSync falla, NO se anade el id a
+//            _ordenesProcessed, asi el bot puede reintentar en el
+//            siguiente tick en lugar de dejarla colgada para siempre.
+//
+// FUNCIONES:
+//   1. Registro automático de operaciones cerradas → Supabase
+//   2. Procesamiento de órdenes del HTML (Ejecutor)
+//   3. Verificación de 11 reglas de gestión de riesgo
+//   4. Publicación de operaciones abiertas a Supabase (Panel Live)
+//   5. Importar histórico desde cTrader
+//   6. Detección automática de cambio de cuenta
+//   7. Tracking de SL máximo histórico por posición
+//   8. Panel visual en cTrader con colores por estado
+//   9. Regla Idea de Trading con riesgo acumulado del grupo
+//  10. Tiempo mínimo con umbral preventivo configurable
+//  11. SL obligatorio automático después de tiempo configurado
+// ═══════════════════════════════════════════════════════════════════════
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
+using cAlgo.API;
+using cAlgo.API.Internals;
+
+namespace cAlgo.Robots
+{
+    public class OrdenPendiente
+    {
+        public long Id;
+        public string Simbolo;
+        public string Tipo;
+        public double Lotes;
+        public int SlPips;
+        public int TpPips;
+    }
+
+    [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.FullAccess)]
+    public class {{CLASS_NAME}} : Robot
+    {
+        // ── PARÁMETROS DE CONFIGURACIÓN ─────────────────────────────────
+        [Parameter("Supabase URL", Group = "Conexion", DefaultValue = "https://eazkacdofivcbwtxlpjp.supabase.co")]
+        public string SupabaseUrl { get; set; }
+
+        [Parameter("Supabase Anon Key", Group = "Conexion", DefaultValue = "sb_publishable_bl6Q6PH20EGaAtw1yMu_sA_bgyDvjuG")]
+        public string SupabaseKey { get; set; }
+
+        // v31: Código de Acceso. Reemplaza al UserId.
+        // Lo da el administrador al usuario desde el panel admin.
+        // Ejemplo: TBV-A7K9-X3M2
+        // El bot lo usa al iniciar para consultar Supabase y obtener el UUID
+        // real del usuario (que se guarda internamente en _resolvedUserId).
+        [Parameter("Código Acceso", Group = "Conexion", DefaultValue = "")]
+        public string CodigoAcceso { get; set; }
+
+        [Parameter("Modo Ejecutor (procesa ordenes + graba)", Group = "Modo", DefaultValue = true)]
+        public bool ModoEjecutor { get; set; }
+
+        [Parameter("Activar Registro Automatico", Group = "Funciones", DefaultValue = true)]
+        public bool ActivarRegistro { get; set; }
+
+        [Parameter("Activar Gestión de Riesgo", Group = "Funciones", DefaultValue = true)]
+        public bool ActivarGestion { get; set; }
+
+        [Parameter("Publicar Panel en HTML", Group = "Funciones", DefaultValue = true)]
+        public bool PublicarPanel { get; set; }
+
+        // v19: offset de zona horaria del usuario (ej: -4 para UTC-4 Caracas).
+        // Se usa para que las reglas (max ops diarias, perdida diaria, ganancia
+        // diaria, franjas de noticias N1/N2/N3) trabajen con el dia/hora del
+        // usuario en lugar de UTC. Si no se cambia, default 0 = UTC.
+        [Parameter("Offset Horario Usuario (horas)", Group = "Funciones", DefaultValue = 0, MinValue = -12, MaxValue = 14)]
+        public int UserTimezoneOffsetHours { get; set; }
+
+        // ── ESTADO INTERNO ──────────────────────────────────────────────
+        private static readonly HttpClient _http = new HttpClient();
+        private readonly Dictionary<string, DateTime> _posOpenTimes = new Dictionary<string, DateTime>();
+        private readonly Dictionary<string, double> _posMaxSLPips = new Dictionary<string, double>();
+        private readonly Dictionary<string, bool> _slAutoPlaced = new Dictionary<string, bool>();
+        private readonly HashSet<long> _ordenesProcessed = new HashSet<long>();
+        private readonly Queue<OrdenPendiente> _ordenesQueue = new Queue<OrdenPendiente>();
+        private readonly List<string> _drawnIds = new List<string>();
+        private bool _procesandoOrden = false;
+        private DateTime _procesandoOrdenDesde = DateTime.MinValue; // v04: watchdog
+        private readonly object _processLock = new object();
+        private DateTime _lastRulesFetch = DateTime.MinValue;
+        private DateTime _lastLivePublish = DateTime.MinValue;
+        private string _panelPrefix = "TB";
+        private long _lastAccountNumber = 0;
+        private bool _pollingInProgress = false;
+
+        // v07: deteccion de retiros automatica
+        private double _lastBalance = 0;
+        private DateTime _lastBalanceCheck = DateTime.MinValue;
+        private DateTime _lastRetirosCheck = DateTime.MinValue;
+        private bool _retirosCheckInProgress = false;
+        private bool _balanceInitialized = false;
+        private DateTime _lastTradeCloseAt = DateTime.MinValue;
+        private double _lastTradeCloseNetProfit = 0;
+
+        // ── REGLAS (cargadas desde Supabase) ────────────────────────────
+        private bool _rMaxOpsOn; private int _rMaxOpsVal;
+        private bool _rPerdDiaOn; private double _rPerdDiaVal;
+        private bool _rGanDiaOn; private double _rGanDiaVal;
+        private bool _rGanCuentaOn; private double _rGanCuentaVal;
+        private bool _rMaxLotOn; private double _rMaxLotVal;
+        private bool _rHorarioOn; private string _rHorarioDesde = ""; private string _rHorarioHasta = "";
+        private bool _rSimbolosOn; private string _rSimbolosVal = "";
+        private bool _rNoticiasOn;
+        private string _rN1D = "", _rN1H = "", _rN2D = "", _rN2H = "", _rN3D = "", _rN3H = "";
+        private bool _rSLOn; private int _rSLTiempo = 120; private int _rSLAntic = 15;
+        private int _rSLPips = 50; private int _rSLAviso = 60;
+        private int _rTPAutoPips = 0; // v05: TP automatico junto con SL automatico (0 = no colocar TP)
+        private bool _rTMinOn; private int _rTMinSeg = 60; private int _rTMinPips = 20; private int _rTMinUmbral = 5;
+        private bool _rITOn; private int _rITVentana = 30; private double _rITLimite = 0;
+
+        // v31: Código de Acceso resuelto (UUID real obtenido de Supabase)
+        // Mientras este vacio, el bot NO graba operaciones.
+        private string _resolvedUserId = "";
+        private bool _botActivo = false;
+        private DateTime _lastBotCheckAt = DateTime.MinValue;
+
+        // v32: plan del usuario (basico, prop, vip).
+        // En basico el bot NO funciona en absoluto.
+        private string _userPlan = "basico";
+
+        // ═══════════════════════════════════════════════════════════════
+        // INICIO
+        // ═══════════════════════════════════════════════════════════════
+        protected override void OnStart()
+        {
+            _panelPrefix = "TB_" + Symbol.Name + "_";
+            _lastAccountNumber = Account.Number;
+
+            Print("═══════════════════════════════════════════════");
+            Print("{{LOG_INICIO}}");
+            Print("Cuenta: " + Account.Number + " | Grafico: " + Symbol.Name);
+            Print("Modo: " + (ModoEjecutor ? "EJECUTOR (graba + procesa)" : "VISUAL (solo panel)"));
+            if (!ModoEjecutor) Print("⚠ Modo VISUAL - No grabara ni procesara ordenes");
+
+            // v31: Validar y resolver código de acceso ANTES de empezar
+            if (string.IsNullOrEmpty(CodigoAcceso))
+            {
+                Print("❌ ERROR: Falta el parametro 'Código Acceso'.");
+                Print("   Pide tu código al administrador desde la app.");
+                Print("   El bot NO grabara operaciones hasta que lo configures.");
+                Print("═══════════════════════════════════════════════");
+                return; // No continuar con setup pesado
+            }
+            ResolverCodigoAccesoAsync();
+
+            Print("═══════════════════════════════════════════════");
+
+            foreach (var pos in Positions)
+            {
+                _posOpenTimes[pos.Id.ToString()] = pos.EntryTime;
+                ActualizarSLMaximo(pos);
+            }
+
+            FetchRulesAsync();
+            Positions.Closed += OnPositionClosed;
+            Positions.Opened += OnPositionOpened;
+
+            // Limpiar posiciones_live fantasma al iniciar (filas de operaciones ya cerradas)
+            if (ModoEjecutor && PublicarPanel) LimpiarPosicionesLiveFantasmaAsync();
+
+            DrawPanel();
+            Timer.Start(TimeSpan.FromMilliseconds(500));
+        }
+
+        // v31: Resolver el código de acceso → obtener UUID y verificar si el bot esta activo
+        private async void ResolverCodigoAccesoAsync()
+        {
+            try
+            {
+                string codigo = (CodigoAcceso ?? "").Trim().ToUpper();
+                string url = SupabaseUrl.TrimEnd('/')
+                    + "/rest/v1/usuarios?bot_codigo=eq." + Uri.EscapeDataString(codigo)
+                    + "&select=id,bot_activo,nombre,estado,plan,rol";
+                var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Get, url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                var resp = await _http.SendAsync(req);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    Print("❌ Error consultando código de acceso: HTTP " + (int)resp.StatusCode);
+                    return;
+                }
+                string body = await resp.Content.ReadAsStringAsync();
+                if (string.IsNullOrEmpty(body) || body == "[]")
+                {
+                    Print("❌ Código de acceso INVALIDO: " + codigo);
+                    Print("   Verifica el código con el administrador.");
+                    Print("   El bot NO grabara operaciones.");
+                    _resolvedUserId = "";
+                    _botActivo = false;
+                    return;
+                }
+                // Extraer id y bot_activo del JSON (parser simple)
+                string id = ExtraerCampoJson(body, "id");
+                string activoStr = ExtraerCampoJson(body, "bot_activo");
+                string nombre = ExtraerCampoJson(body, "nombre");
+                string estado = ExtraerCampoJson(body, "estado");
+                string plan = ExtraerCampoJson(body, "plan");
+                string rol = ExtraerCampoJson(body, "rol");
+                bool activo = !(activoStr == "false");
+                _userPlan = string.IsNullOrEmpty(plan) ? "basico" : plan.ToLower();
+                // v41: si el rol es admin, el plan efectivo siempre es VIP.
+                if (rol != null && rol.ToLower() == "admin")
+                {
+                    _userPlan = "vip";
+                }
+
+                if (string.IsNullOrEmpty(id))
+                {
+                    Print("❌ Respuesta de Supabase incompleta. No se pudo obtener el UUID.");
+                    return;
+                }
+                if (!activo)
+                {
+                    Print("🔒 Tu bot esta BLOQUEADO por el administrador.");
+                    Print("   Contacta al administrador para reactivarlo.");
+                    Print("   El bot NO grabara operaciones.");
+                    _resolvedUserId = "";
+                    _botActivo = false;
+                    return;
+                }
+                if (estado != "activo" && !string.IsNullOrEmpty(estado))
+                {
+                    Print("⚠ Tu cuenta esta en estado: " + estado);
+                    Print("   El bot NO grabara operaciones.");
+                    _resolvedUserId = "";
+                    _botActivo = false;
+                    return;
+                }
+                // v32: plan basico no permite uso del bot
+                if (_userPlan == "basico")
+                {
+                    Print("📦 Tu plan actual es BASICO.");
+                    Print("   Plan Basico no permite uso del bot.");
+                    Print("   Solicita actualizar a plan PROP desde la app.");
+                    Print("   El bot NO grabara operaciones.");
+                    _resolvedUserId = "";
+                    _botActivo = false;
+                    return;
+                }
+                _resolvedUserId = id;
+                _botActivo = true;
+                _lastBotCheckAt = DateTime.UtcNow;
+                Print("✅ Código de acceso valido. Usuario: " + (string.IsNullOrEmpty(nombre)?"--":nombre));
+                Print("   Plan: " + _userPlan.ToUpper());
+                if (_userPlan == "prop")
+                {
+                    Print("   ⚠ Plan PROP: el bot solo grabara operaciones cerradas.");
+                    Print("     No procesara ordenes desde HTML ni aplicara reglas de gestion.");
+                    Print("     Para acceso completo, actualiza a Plan VIP.");
+                }
+                else if (_userPlan == "vip")
+                {
+                    Print("   👑 Plan VIP: acceso completo. Graba + ordenes + reglas.");
+                }
+                Print("   Bot ACTIVO. Listo para grabar operaciones.");
+            }
+            catch (Exception ex)
+            {
+                Print("❌ Excepcion resolviendo código de acceso: " + ex.Message);
+                _resolvedUserId = "";
+                _botActivo = false;
+            }
+        }
+
+        // Helper para extraer un campo string o boolean simple del JSON de Supabase
+        // Soporta formatos: "campo":"valor"  o  "campo":true/false  o  "campo":null
+        private string ExtraerCampoJson(string json, string campo)
+        {
+            try
+            {
+                int idx = json.IndexOf("\\"" + campo + "\\":");
+                if (idx < 0) return "";
+                int s = idx + campo.Length + 3;
+                if (s >= json.Length) return "";
+                // Saltar espacios
+                while (s < json.Length && (json[s] == ' ' || json[s] == '\\t')) s++;
+                if (s >= json.Length) return "";
+                if (json[s] == '"')
+                {
+                    int e = json.IndexOf('"', s + 1);
+                    if (e < 0) return "";
+                    return json.Substring(s + 1, e - s - 1);
+                }
+                else
+                {
+                    // Boolean / number / null hasta coma o llave
+                    int e = s;
+                    while (e < json.Length && json[e] != ',' && json[e] != '}' && json[e] != ']') e++;
+                    return json.Substring(s, e - s).Trim();
+                }
+            }
+            catch { return ""; }
+        }
+
+        // Eliminar filas de posiciones_live que no corresponden a posiciones actualmente abiertas
+        private async void LimpiarPosicionesLiveFantasmaAsync()
+        {
+            try
+            {
+                // 1) Obtener trade_ids de posiciones abiertas actualmente
+                var idsAbiertos = new HashSet<string>();
+                foreach (var pos in Positions) idsAbiertos.Add(pos.Id.ToString());
+
+                // 2) Consultar qué está en posiciones_live de esta cuenta
+                string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/posiciones_live?cuenta_id=eq." + Account.Number + "&select=trade_id";
+                var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Get, url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                var resp = await _http.SendAsync(req);
+                if (!resp.IsSuccessStatusCode) return;
+                string body = await resp.Content.ReadAsStringAsync();
+                if (string.IsNullOrEmpty(body) || body == "[]") return;
+
+                // 3) Para cada trade_id que no esté abierto, borrar la fila fantasma
+                int idx = 0;
+                int fantasmas = 0;
+                while (idx < body.Length)
+                {
+                    int s = body.IndexOf("\\"trade_id\\":\\"", idx);
+                    if (s < 0) break;
+                    s += "\\"trade_id\\":\\"".Length;
+                    int e = body.IndexOf("\\"", s);
+                    if (e < 0) break;
+                    string tid = body.Substring(s, e - s);
+                    if (!idsAbiertos.Contains(tid))
+                    {
+                        DeletePosLiveAsync(tid);
+                        fantasmas++;
+                    }
+                    idx = e + 1;
+                }
+                if (fantasmas > 0) Print("Limpiadas " + fantasmas + " posiciones fantasma de posiciones_live");
+            }
+            catch { }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // TIMER cada 500ms
+        // ═══════════════════════════════════════════════════════════════
+        protected override void OnTimer()
+        {
+            // Cada bloque con try/catch para que un error no detenga los demás
+            try
+            {
+                if (Account.Number != _lastAccountNumber)
+                {
+                    long vieja = _lastAccountNumber;
+                    _lastAccountNumber = Account.Number;
+                    OnCuentaCambiada(vieja, Account.Number);
+                }
+            } catch { }
+
+            // v31: revalidar código de acceso cada 60 minutos por si admin bloquea/cambia
+            try {
+                if (!string.IsNullOrEmpty(CodigoAcceso) && (DateTime.UtcNow - _lastBotCheckAt).TotalMinutes > 60)
+                {
+                    _lastBotCheckAt = DateTime.UtcNow;
+                    ResolverCodigoAccesoAsync();
+                }
+            } catch { }
+
+            try
+            {
+                // v39: Poll de órdenes corre en plan PROP y VIP
+                //      (en BASICO no, porque ahí el bot no funciona en absoluto).
+                //      El filtrado de qué órdenes ejecuta se hace adentro:
+                //      - IMPORT_HISTORY: siempre (es solo lectura)
+                //      - BUY/SELL/CLOSE: solo plan VIP
+                if (ModoEjecutor && _userPlan != "basico") {
+                    // v04: watchdog - si una orden lleva mas de 30s "procesandose"
+                    //      algo fallo silenciosamente. Resetear para desbloquear la cola.
+                    if (_procesandoOrden && _procesandoOrdenDesde != DateTime.MinValue
+                        && (DateTime.UtcNow - _procesandoOrdenDesde).TotalSeconds > 30)
+                    {
+                        Print("[WATCHDOG] Orden bloqueada >30s, reseteando flag para desbloquear cola");
+                        _procesandoOrden = false;
+                        _procesandoOrdenDesde = DateTime.MinValue;
+                    }
+                    PollOrdenesPendientesAsync();
+                    ProcesarSiguienteOrdenEnCola();
+                }
+            } catch { }
+
+            // v33: en plan PROP el bot NO aplica reglas de gestion (solo VIP)
+            try { if (_userPlan == "vip" && (DateTime.UtcNow - _lastRulesFetch).TotalSeconds > 30) FetchRulesAsync(); } catch { }
+
+            try { foreach (var pos in Positions) ActualizarSLMaximo(pos); } catch { }
+
+            // v33: CheckOpenPositions aplica reglas (max ops, perdida diaria, etc) → solo VIP
+            try { if (_userPlan == "vip") CheckOpenPositions(); } catch { }
+
+            try { DrawPanel(); } catch { }
+
+            try
+            {
+                if (ModoEjecutor && PublicarPanel && (DateTime.UtcNow - _lastLivePublish).TotalSeconds >= 2)
+                {
+                    _lastLivePublish = DateTime.UtcNow;
+                    PublicarPosicionesLiveAsync();
+                }
+            } catch { }
+
+            // v07: deteccion automatica de retiros del broker
+            // v20: deteccion automatica de retiros DESHABILITADA
+            // (causaba falsos positivos cuando se perdía una operacion)
+            // try { CheckRetirosBalance(); } catch { }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CAMBIO DE CUENTA
+        // ═══════════════════════════════════════════════════════════════
+        private void OnCuentaCambiada(long vieja, long nueva)
+        {
+            Print("═════ CUENTA CAMBIADA: " + vieja + " → " + nueva + " ═════");
+            _posOpenTimes.Clear();
+            _posMaxSLPips.Clear();
+            _slAutoPlaced.Clear();
+            _ordenesProcessed.Clear();
+            lock (_processLock) { _ordenesQueue.Clear(); }
+            _procesandoOrden = false;
+            _procesandoOrdenDesde = DateTime.MinValue; // v04: reset watchdog
+
+            try { Chart.RemoveObject(_panelPrefix + "TITLE"); } catch { }
+            try { Chart.RemoveObject(_panelPrefix + "POS"); } catch { }
+            foreach (var id in _drawnIds) { try { Chart.RemoveObject(_panelPrefix + "POS_" + id); } catch { } }
+            _drawnIds.Clear();
+
+            foreach (var pos in Positions)
+            {
+                _posOpenTimes[pos.Id.ToString()] = pos.EntryTime;
+                ActualizarSLMaximo(pos);
+            }
+
+            _lastRulesFetch = DateTime.MinValue;
+            FetchRulesAsync();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SL MÁXIMO HISTÓRICO
+        // ═══════════════════════════════════════════════════════════════
+        private void ActualizarSLMaximo(Position pos)
+        {
+            var sym = Symbols.GetSymbol(pos.SymbolName);
+            if (sym == null || !pos.StopLoss.HasValue) return;
+            double slPips = Math.Abs(pos.EntryPrice - pos.StopLoss.Value) / sym.PipSize;
+            string id = pos.Id.ToString();
+            if (!_posMaxSLPips.ContainsKey(id) || slPips > _posMaxSLPips[id])
+                _posMaxSLPips[id] = slPips;
+        }
+
+        private double GetRiesgoMaximoHistorico(Position pos)
+        {
+            var sym = Symbols.GetSymbol(pos.SymbolName);
+            if (sym == null) return 0;
+            string id = pos.Id.ToString();
+            if (_posMaxSLPips.ContainsKey(id))
+                return _posMaxSLPips[id] * sym.PipValue * pos.VolumeInUnits;
+            if (pos.StopLoss.HasValue)
+            {
+                double slPips = Math.Abs(pos.EntryPrice - pos.StopLoss.Value) / sym.PipSize;
+                return slPips * sym.PipValue * pos.VolumeInUnits;
+            }
+            return 0;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // POLLING ÓRDENES
+        // ═══════════════════════════════════════════════════════════════
+        private async void PollOrdenesPendientesAsync()
+        {
+            if (_pollingInProgress) return;
+            _pollingInProgress = true;
+            try
+            {
+                string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/ordenes_pendientes"
+                           + "?user_id=eq." + _resolvedUserId + "&cuenta_id=eq." + Account.Number
+                           + "&estado=eq.pendiente&order=created_at.asc&limit=10";
+                var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Get, url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                var resp = await _http.SendAsync(req);
+                if (!resp.IsSuccessStatusCode) return;
+                string body = await resp.Content.ReadAsStringAsync();
+                if (string.IsNullOrEmpty(body) || body == "[]") return;
+                ProcessOrdenes(body);
+            }
+            catch { }
+            finally { _pollingInProgress = false; }
+        }
+
+        private void ProcessOrdenes(string jsonArray)
+        {
+            int idx = 0;
+            while (idx < jsonArray.Length)
+            {
+                int start = jsonArray.IndexOf('{', idx);
+                if (start < 0) break;
+                int depth = 0; int end = start;
+                for (int i = start; i < jsonArray.Length; i++)
+                {
+                    if (jsonArray[i] == '{') depth++;
+                    else if (jsonArray[i] == '}') { depth--; if (depth == 0) { end = i; break; } }
+                }
+                if (end <= start) break;
+                ProcessUnaOrden(jsonArray.Substring(start, end - start + 1));
+                idx = end + 1;
+            }
+        }
+
+        private void ProcessUnaOrden(string json)
+        {
+            long id = (long)ExtractJsonDouble(json, "id");
+            lock (_processLock)
+            {
+                if (_ordenesProcessed.Contains(id)) return;
+                _ordenesProcessed.Add(id);
+            }
+            string simbolo = ExtractJsonString(json, "simbolo");
+            string tipo = ExtractJsonString(json, "tipo");
+            double lotes = ExtractJsonDouble(json, "lotes");
+            int slPips = (int)ExtractJsonDouble(json, "sl_pips");
+            int tpPips = (int)ExtractJsonDouble(json, "tp_pips");
+
+            // v04: si falla marcar como "procesando", NO anadir al set de procesadas
+            //      para que en el siguiente tick se pueda reintentar en vez de quedar colgada
+            bool marcadoOk = false;
+            try {
+                marcadoOk = UpdateOrdenEstadoSync(id, "procesando", null, null);
+            } catch { marcadoOk = false; }
+            if (!marcadoOk) {
+                lock (_processLock) { _ordenesProcessed.Remove(id); }
+                Print("Orden #" + id + " - fallo al marcar 'procesando', reintento en proximo tick");
+                return;
+            }
+
+            // Caso especial: IMPORT_HISTORY (solo lectura, se permite en Prop y VIP)
+            if (tipo == "IMPORT_HISTORY")
+            {
+                BeginInvokeOnMainThread(() => ImportarHistorico(id));
+                return;
+            }
+
+            // v20: comando IMPORT_RETIROS DESHABILITADO
+            // if (tipo == "IMPORT_RETIROS")
+            // {
+            //     BeginInvokeOnMainThread(() => ImportarRetirosHistorico(id));
+            //     return;
+            // }
+
+            // v39: órdenes de trading (BUY/SELL/CLOSE/MODIFY) solo en plan VIP.
+            //      En PROP las rechazamos para no crear cola muerta.
+            if (_userPlan != "vip")
+            {
+                UpdateOrdenEstadoSync(id, "rechazada", "Plan Prop no permite ejecucion de ordenes desde HTML. Actualiza a VIP.", null);
+                Print("[v39] Orden #" + id + " (" + tipo + ") rechazada: requiere plan VIP. Plan actual: " + _userPlan);
+                return;
+            }
+
+            // Encolar la orden para procesarla de una en una en el main thread
+            var orden = new OrdenPendiente {
+                Id = id, Simbolo = simbolo, Tipo = tipo,
+                Lotes = lotes, SlPips = slPips, TpPips = tpPips
+            };
+            lock (_processLock)
+            {
+                _ordenesQueue.Enqueue(orden);
+            }
+        }
+
+        // Procesa UNA orden de la cola por tick del timer (evita bloqueo)
+        private void ProcesarSiguienteOrdenEnCola()
+        {
+            if (_procesandoOrden) return;
+            OrdenPendiente orden = null;
+            lock (_processLock)
+            {
+                if (_ordenesQueue.Count == 0) return;
+                orden = _ordenesQueue.Dequeue();
+            }
+            if (orden == null) return;
+            _procesandoOrden = true;
+            _procesandoOrdenDesde = DateTime.UtcNow; // v04: inicio watchdog
+
+            // TODO el procesamiento que toca APIs de cTrader va en BeginInvokeOnMainThread
+            BeginInvokeOnMainThread(() => {
+                try
+                {
+                    Symbol sym = null;
+                    try { sym = Symbols.GetSymbol(orden.Simbolo); } catch { }
+                    if (sym == null)
+                    {
+                        UpdateOrdenEstado(orden.Id, "rechazada", "Simbolo " + orden.Simbolo + " no existe en cTrader");
+                        _procesandoOrden = false;
+                        _procesandoOrdenDesde = DateTime.MinValue;
+                        return;
+                    }
+                    TradeType tradeType = orden.Tipo.ToUpper() == "COMPRA" ? TradeType.Buy : TradeType.Sell;
+                    double riesgoNueva = orden.SlPips * sym.PipValue * sym.QuantityToVolumeInUnits(orden.Lotes);
+                    string violacion = VerificarReglas(sym, tradeType, orden.Lotes, riesgoNueva);
+                    if (violacion != null)
+                    {
+                        UpdateOrdenEstado(orden.Id, "rechazada", violacion);
+                        _procesandoOrden = false;
+                        _procesandoOrdenDesde = DateTime.MinValue;
+                        return;
+                    }
+                    double volumen = sym.NormalizeVolumeInUnits(sym.QuantityToVolumeInUnits(orden.Lotes));
+                    TradeResult result;
+                    if (orden.SlPips > 0 || orden.TpPips > 0)
+                        result = ExecuteMarketOrder(tradeType, sym.Name, volumen, "TB-Bot-" + orden.Id,
+                            orden.SlPips > 0 ? (double?)orden.SlPips : null, orden.TpPips > 0 ? (double?)orden.TpPips : null);
+                    else
+                        result = ExecuteMarketOrder(tradeType, sym.Name, volumen, "TB-Bot-" + orden.Id);
+                    if (result.IsSuccessful)
+                    {
+                        UpdateOrdenEstado(orden.Id, "ejecutada", null, result.Position.Id.ToString());
+                        Print("Orden #" + orden.Id + " ejecutada - trade " + result.Position.Id);
+                    }
+                    else
+                    {
+                        UpdateOrdenEstado(orden.Id, "error", result.Error.ToString());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    try { UpdateOrdenEstado(orden.Id, "error", ex.Message); } catch { }
+                }
+                finally {
+                    _procesandoOrden = false;
+                    _procesandoOrdenDesde = DateTime.MinValue; // v04: fin watchdog
+                }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // IMPORTAR HISTÓRICO
+        // ═══════════════════════════════════════════════════════════════
+        private void ImportarHistorico(long ordenId)
+        {
+            int importadas = 0, yaExistian = 0, errores = 0;
+            try
+            {
+                Print("═════ IMPORTANDO HISTÓRICO - Cuenta " + Account.Number + " ═════");
+                var historial = new List<HistoricalTrade>();
+                foreach (var h in History) historial.Add(h);
+                int totalTrades = historial.Count;
+                Print("Operaciones en History: " + totalTrades);
+
+                // v11: marcar como "procesando" para que el HTML reciba el primer evento
+                UpdateOrdenEstado(ordenId, "procesando", "PROG:0/" + totalTrades);
+
+                int procesados = 0;
+                foreach (var h in historial)
+                {
+                    try
+                    {
+                        var sym = Symbols.GetSymbol(h.SymbolName);
+                        if (sym == null) { errores++; }
+                        else
+                        {
+                            string tradeIdStr = h.PositionId.ToString();
+                            if (ExisteTradeId(tradeIdStr)) { yaExistian++; }
+                            else
+                            {
+                                string tipo = h.TradeType == TradeType.Buy ? "COMPRA" : "VENTA";
+                                string estado = h.NetProfit >= 0 ? "GANADA" : "PERDIDA";
+                                var dur = h.ClosingTime - h.EntryTime;
+                                string duracion = dur.TotalHours >= 1 ? ((int)dur.TotalHours) + "h " + dur.Minutes + "m " + dur.Seconds + "s"
+                                                : dur.TotalMinutes >= 1 ? dur.Minutes + "m " + dur.Seconds + "s"
+                                                : ((int)dur.TotalSeconds) + "s";
+                                // v40: bot graba en UTC. HTML convierte a zona usuario.
+
+                                string json = "{" +
+                                    "\\"user_id\\":\\"" + _resolvedUserId + "\\",\\"cuenta_id\\":\\"" + Account.Number + "\\"," +
+                                    "\\"trade_id\\":\\"" + tradeIdStr + "\\",\\"simbolo\\":\\"" + h.SymbolName + "\\"," +
+                                    "\\"fecha\\":\\"" + h.EntryTime.ToString("yyyy-MM-dd") + "\\"," +
+                                    "\\"hora_apertura\\":\\"" + h.EntryTime.ToString("HH:mm:ss") + ":" + h.EntryTime.Millisecond.ToString("D2") + "\\"," +
+                                    "\\"hora_cierre\\":\\"" + h.ClosingTime.ToString("HH:mm:ss") + ":" + h.ClosingTime.Millisecond.ToString("D2") + "\\"," +
+                                    "\\"precio_apertura\\":" + h.EntryPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                                    "\\"precio_cierre\\":" + h.ClosingPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                                    "\\"pnl\\":" + h.NetProfit.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                                    "\\"riesgo\\":0.00," +
+                                    "\\"lotaje\\":" + sym.VolumeInUnitsToQuantity(h.VolumeInUnits).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                                    "\\"tipo\\":\\"" + tipo + "\\",\\"pips\\":\\"\\"," +
+                                    "\\"estado\\":\\"" + estado + "\\",\\"motivo_cierre\\":\\"Manual\\"," +
+                                    "\\"duracion\\":\\"" + duracion + "\\"}";
+
+                                SendToSupabaseSync(json);
+                                importadas++;
+                            }
+                        }
+                    }
+                    catch { errores++; }
+
+                    // v11: reportar progreso cada 5 trades o en el ultimo
+                    procesados++;
+                    if (procesados % 5 == 0 || procesados == totalTrades)
+                    {
+                        try { UpdateOrdenEstado(ordenId, "procesando", "PROG:" + procesados + "/" + totalTrades); } catch { }
+                    }
+                }
+
+                string resumen = "Importadas: " + importadas + " | Ya existian: " + yaExistian + " | Errores: " + errores;
+                Print("═════ " + resumen);
+                UpdateOrdenEstado(ordenId, "ejecutada", resumen);
+            }
+            catch (Exception ex)
+            {
+                Print("Error importando: " + ex.Message);
+                UpdateOrdenEstado(ordenId, "error", ex.Message);
+            }
+        }
+
+        private bool ExisteTradeId(string tradeId)
+        {
+            try
+            {
+                string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/trades_ctrader?cuenta_id=eq." + Account.Number + "&trade_id=eq." + tradeId + "&select=trade_id&limit=1";
+                var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Get, url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                var task = _http.SendAsync(req);
+                task.Wait(5000);
+                if (!task.Result.IsSuccessStatusCode) return false;
+                var bodyTask = task.Result.Content.ReadAsStringAsync();
+                bodyTask.Wait(3000);
+                string body = bodyTask.Result;
+                return !string.IsNullOrEmpty(body) && body != "[]";
+            }
+            catch { return false; }
+        }
+
+        // v11: Importar retiros historicos del broker
+        // En cTrader cBot API NO existe acceso directo a transacciones
+        // de deposito/retiro. Pero podemos inferirlas reconstruyendo
+        // el balance: para cada trade cerrado en History conocemos NetProfit;
+        // sumando todos los NetProfit y comparando con Balance actual,
+        // la diferencia entre el balance "esperado por trades" y el real
+        // son los aportes/retiros netos. NO podemos atribuir fechas exactas
+        // a los retiros historicos sin info adicional, por eso este metodo
+        // reporta la diferencia y el usuario decide.
+        private void ImportarRetirosHistorico(long ordenId)
+        {
+            try
+            {
+                Print("═════ IMPORTANDO RETIROS - Cuenta " + Account.Number + " ═════");
+
+                // Sumar todos los NetProfit de History
+                double sumaNeta = 0;
+                int totalTrades = 0;
+                foreach (var h in History)
+                {
+                    sumaNeta += h.NetProfit;
+                    totalTrades++;
+                }
+
+                double balanceActual = Account.Balance;
+
+                // El balance inicial implícito = balance actual - sumaNeta + retiros - depositos
+                // Sin acceso a la API de transacciones, no podemos separar depositos/retiros
+                // historicos. Lo unico que podemos hacer con seguridad es:
+                //  - Detectar retiros NUEVOS en tiempo real (ya lo hace v07)
+                //  - Reportar al HTML que la API del broker no expone retiros historicos
+                //
+                // Sin embargo, intentamos un approach: si el balance actual es MENOR que
+                // (depositoInicialEstimado + sumaNeta), la diferencia es retiro neto historico.
+                // No podemos asignar fechas, pero podemos crear UNA entrada agregada de
+                // "retiros historicos" si el usuario lo desea.
+
+                string resumen = "Trades en historia: " + totalTrades +
+                                 " | NetProfit acumulado: $" + sumaNeta.ToString("F2") +
+                                 " | Balance actual: $" + balanceActual.ToString("F2") +
+                                 " | NOTA: cTrader API no expone fechas de retiros historicos. " +
+                                 "Solo se detectan retiros nuevos en tiempo real mientras el bot corre.";
+
+                Print("═════ " + resumen);
+                UpdateOrdenEstado(ordenId, "ejecutada", resumen);
+            }
+            catch (Exception ex)
+            {
+                Print("Error importando retiros: " + ex.Message);
+                UpdateOrdenEstado(ordenId, "error", ex.Message);
+            }
+        }
+
+        private void SendToSupabaseSync(string json)
+        {
+            try
+            {
+                string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/trades_ctrader";
+                var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                req.Headers.Add("Prefer", "return=minimal");
+                req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                var task = _http.SendAsync(req);
+                task.Wait(5000);
+            }
+            catch { }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // VERIFICAR REGLAS
+        // ═══════════════════════════════════════════════════════════════
+        private string VerificarReglas(Symbol sym, TradeType tipo, double lotes, double riesgoNueva)
+        {
+            if (!ActivarGestion) return null;
+            string horaStr = UserNow().ToString("HH:mm"); // v19: hora del usuario
+            string tipoStr = tipo == TradeType.Buy ? "COMPRA" : "VENTA";
+
+            if (_rSimbolosOn && !string.IsNullOrEmpty(_rSimbolosVal))
+            {
+                var lista = _rSimbolosVal.Split(',');
+                bool ok = false;
+                foreach (var s in lista) if (s.Trim().Equals(sym.Name, StringComparison.OrdinalIgnoreCase)) { ok = true; break; }
+                if (!ok) return "Simbolo " + sym.Name + " no permitido";
+            }
+            if (_rHorarioOn && !string.IsNullOrEmpty(_rHorarioDesde) && !string.IsNullOrEmpty(_rHorarioHasta))
+                if (string.Compare(horaStr, _rHorarioDesde) < 0 || string.Compare(horaStr, _rHorarioHasta) > 0)
+                    return "Fuera de horario";
+            if (_rNoticiasOn)
+                if (EnFranja(horaStr, _rN1D, _rN1H) || EnFranja(horaStr, _rN2D, _rN2H) || EnFranja(horaStr, _rN3D, _rN3H))
+                    return "Franja de noticias activa";
+            if (_rMaxLotOn && lotes > _rMaxLotVal) return "Lotaje " + lotes + " supera máximo " + _rMaxLotVal;
+            if (_rMaxOpsOn && ContarOpsHoy() >= _rMaxOpsVal) return "Limite de " + _rMaxOpsVal + " operaciones diarias alcanzado";
+            if (_rPerdDiaOn && PerdidaHoy() >= _rPerdDiaVal) return "Perdida diaria alcanzo limite $" + _rPerdDiaVal;
+            if (_rGanDiaOn && GananciaHoy() >= _rGanDiaVal) return "Ganancia diaria alcanzo limite $" + _rGanDiaVal;
+            if (_rGanCuentaOn && GananciaTotal() >= _rGanCuentaVal) return "Ganancia cuenta alcanzo limite $" + _rGanCuentaVal;
+
+            if (_rITOn && _rITLimite > 0)
+            {
+                double riesgoGrupo = CalcularRiesgoGrupoIdea(sym.Name, tipoStr);
+                double total = riesgoGrupo + riesgoNueva;
+                if (total > _rITLimite)
+                    return "Idea Trading: " + sym.Name + " " + tipoStr + " acumularia $" + total.ToString("F2") + " excede $" + _rITLimite;
+            }
+            return null;
+        }
+
+        private double CalcularRiesgoGrupoIdea(string simboloName, string tipoStr)
+        {
+            if (_rITVentana <= 0) return 0;
+            DateTime inicio = DateTime.UtcNow.AddMinutes(-_rITVentana);
+            double total = 0;
+
+            foreach (var pos in Positions)
+            {
+                if (pos.SymbolName != simboloName) continue;
+                string t = pos.TradeType == TradeType.Buy ? "COMPRA" : "VENTA";
+                if (t != tipoStr) continue;
+                if (pos.EntryTime < inicio) continue;
+                total += GetRiesgoMaximoHistorico(pos);
+            }
+            try
+            {
+                foreach (var h in History)
+                {
+                    if (h.SymbolName != simboloName) continue;
+                    string t = h.TradeType == TradeType.Buy ? "COMPRA" : "VENTA";
+                    if (t != tipoStr) continue;
+                    if (h.EntryTime < inicio) continue;
+                    string hId = h.PositionId.ToString();
+                    var hSym = Symbols.GetSymbol(h.SymbolName);
+                    if (_posMaxSLPips.ContainsKey(hId) && hSym != null)
+                        total += _posMaxSLPips[hId] * hSym.PipValue * h.VolumeInUnits;
+                }
+            }
+            catch { }
+            return total;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // POSICIÓN ABIERTA / CERRADA
+        // ═══════════════════════════════════════════════════════════════
+        private void OnPositionOpened(PositionOpenedEventArgs args)
+        {
+            _posOpenTimes[args.Position.Id.ToString()] = args.Position.EntryTime;
+            ActualizarSLMaximo(args.Position);
+        }
+
+        private void OnPositionClosed(PositionClosedEventArgs args)
+        {
+            // v20: log inmediato para confirmar que el evento se disparo
+            Print("[v20] OnPositionClosed disparado - PID" + args.Position.Id + " " + args.Position.SymbolName + " NetProfit=" + args.Position.NetProfit.ToString("F2"));
+
+            if (!ModoEjecutor) { Print("[v20] No graba: ModoEjecutor=false"); return; }
+            if (!ActivarRegistro) { Print("[v20] No graba: ActivarRegistro=false"); return; }
+            // v31: bloqueo de grabacion si código invalido o bot bloqueado
+            if (string.IsNullOrEmpty(_resolvedUserId) || !_botActivo)
+            {
+                Print("[v31] No graba: código de acceso invalido o bot bloqueado por el administrador.");
+                return;
+            }
+            var pos = args.Position;
+            string motivo = "Manual";
+            if (args.Reason == PositionCloseReason.StopLoss) motivo = "SL";
+            else if (args.Reason == PositionCloseReason.TakeProfit) motivo = "TP";
+
+            DateTime openTime = _posOpenTimes.ContainsKey(pos.Id.ToString()) ? _posOpenTimes[pos.Id.ToString()] : pos.EntryTime;
+            var dur = DateTime.UtcNow - openTime;
+            string duracion = dur.TotalHours >= 1 ? ((int)dur.TotalHours) + "h " + dur.Minutes + "m " + dur.Seconds + "s"
+                            : dur.TotalMinutes >= 1 ? dur.Minutes + "m " + dur.Seconds + "s"
+                            : ((int)dur.TotalSeconds) + "s";
+            // v40: el bot SIEMPRE graba en UTC. La conversión a zona del usuario
+            //      se hace en el HTML usando la zona configurada por el usuario.
+            //      Esto evita confusiones por offset doble o mal configurado.
+            string horaApertura = openTime.ToString("HH:mm:ss") + ":" + openTime.Millisecond.ToString("D2");
+            string horaCierre = DateTime.UtcNow.ToString("HH:mm:ss") + ":" + DateTime.UtcNow.Millisecond.ToString("D2");
+            string estado = pos.NetProfit >= 0 ? "GANADA" : "PERDIDA";
+            string tipo = pos.TradeType == TradeType.Buy ? "COMPRA" : "VENTA";
+            var posSym = Symbols.GetSymbol(pos.SymbolName);
+            double riesgo = GetRiesgoMaximoHistorico(pos);
+            double lotaje = posSym != null ? posSym.VolumeInUnitsToQuantity(pos.VolumeInUnits) : 0;
+
+            string json = "{" +
+                "\\"user_id\\":\\"" + _resolvedUserId + "\\",\\"cuenta_id\\":\\"" + Account.Number + "\\"," +
+                "\\"trade_id\\":\\"" + pos.Id + "\\",\\"simbolo\\":\\"" + pos.SymbolName + "\\"," +
+                "\\"fecha\\":\\"" + DateTime.UtcNow.ToString("yyyy-MM-dd") + "\\"," +
+                "\\"hora_apertura\\":\\"" + horaApertura + "\\",\\"hora_cierre\\":\\"" + horaCierre + "\\"," +
+                "\\"precio_apertura\\":" + pos.EntryPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                "\\"precio_cierre\\":" + pos.CurrentPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                "\\"pnl\\":" + pos.NetProfit.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                "\\"riesgo\\":" + riesgo.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                "\\"lotaje\\":" + lotaje.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                "\\"tipo\\":\\"" + tipo + "\\",\\"pips\\":\\"\\"," +
+                "\\"estado\\":\\"" + estado + "\\",\\"motivo_cierre\\":\\"" + motivo + "\\"," +
+                "\\"duracion\\":\\"" + duracion + "\\"}";
+
+            // v21: log antes de enviar
+            Print("[v21] OnPositionClosed: enviando a Supabase trade_id=" + pos.Id + " _resolvedUserId=" + (string.IsNullOrEmpty(_resolvedUserId) ? "VACIO" : _resolvedUserId.Substring(0,8)+"...") + " URL=" + (string.IsNullOrEmpty(SupabaseUrl) ? "VACIA" : "OK"));
+            SendToSupabaseAsync("trades_ctrader", json);
+            DeletePosLiveAsync(pos.Id.ToString());
+
+            var id = pos.Id.ToString();
+            _posOpenTimes.Remove(id);
+            _slAutoPlaced.Remove(id);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CHECK POSICIONES (SL + TiempoMin)
+        // ═══════════════════════════════════════════════════════════════
+        private void CheckOpenPositions()
+        {
+            foreach (var pos in Positions)
+            {
+                var id = pos.Id.ToString();
+                if (!_posOpenTimes.ContainsKey(id)) _posOpenTimes[id] = pos.EntryTime;
+                double segs = (DateTime.UtcNow - _posOpenTimes[id]).TotalSeconds;
+                var posSym = Symbols.GetSymbol(pos.SymbolName);
+                if (posSym == null) continue;
+
+                if (_rSLOn)
+                {
+                    if (!pos.StopLoss.HasValue)
+                    {
+                        if (segs >= _rSLAviso)
+                            Chart.DrawStaticText(_panelPrefix + "SLWARN_" + id,
+                                "⚠ COLOCAR SL - " + pos.SymbolName,
+                                VerticalAlignment.Top, HorizontalAlignment.Center, Color.OrangeRed);
+                        if (segs >= (_rSLTiempo - _rSLAntic) && !(_slAutoPlaced.ContainsKey(id) && _slAutoPlaced[id]))
+                        {
+                            double slPriceRaw = pos.TradeType == TradeType.Buy
+                                ? pos.EntryPrice - (_rSLPips * posSym.PipSize)
+                                : pos.EntryPrice + (_rSLPips * posSym.PipSize);
+
+                            // v05: normalizar a Digits del simbolo (evita InvalidRequest en DOW, etc.)
+                            double slPrice = Math.Round(slPriceRaw, posSym.Digits);
+
+                            // v05: TP automatico - solo si esta configurado y la posicion no tiene TP manual
+                            double? tpFinal = pos.TakeProfit;
+                            if (_rTPAutoPips > 0 && !pos.TakeProfit.HasValue)
+                            {
+                                double tpPriceRaw = pos.TradeType == TradeType.Buy
+                                    ? pos.EntryPrice + (_rTPAutoPips * posSym.PipSize)
+                                    : pos.EntryPrice - (_rTPAutoPips * posSym.PipSize);
+                                tpFinal = Math.Round(tpPriceRaw, posSym.Digits);
+                            }
+
+                            // v17: enfoque simple como v11 (sin pre-validacion).
+                            // Calcular SL, normalizar, enviar. Si falla, revertir flag y reintentar.
+                            // (En v12-v16 habia pre-validacion que bloqueaba el envio en BTC.)
+                            _slAutoPlaced[id] = true;
+                            var posRef = pos;
+                            var idRef = id;
+                            ModifyPositionAsync(posRef, slPrice, tpFinal, result =>
+                            {
+                                if (result == null || !result.IsSuccessful)
+                                {
+                                    string err = (result != null && result.Error.HasValue) ? result.Error.Value.ToString() : "unknown";
+
+                                    // "Nothing to amend" = ya estaba puesto, exito real
+                                    if (err.IndexOf("amend", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                        err.IndexOf("nothing", StringComparison.OrdinalIgnoreCase) >= 0)
+                                    {
+                                        return;
+                                    }
+
+                                    // Si la posicion ya tiene SL, fue exito (race condition)
+                                    bool yaTieneSL = false;
+                                    try
+                                    {
+                                        foreach (var p in Positions)
+                                        {
+                                            if (p.Id.ToString() == idRef && p.StopLoss.HasValue)
+                                            {
+                                                yaTieneSL = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    catch { }
+                                    if (yaTieneSL) return;
+
+                                    // Fallo real - revertir flag para reintentar
+                                    _slAutoPlaced[idRef] = false;
+                                    Print("[v17] SL auto fallo en " + posRef.SymbolName + " PID" + idRef + " SL=" + slPrice + " TP=" + (tpFinal.HasValue ? tpFinal.Value.ToString() : "null") + " err=" + err);
+                                }
+                            });
+                        }
+                    }
+                    else
+                    {
+                        Chart.DrawStaticText(_panelPrefix + "SLWARN_" + id, "",
+                            VerticalAlignment.Top, HorizontalAlignment.Center, Color.Transparent);
+                    }
+                }
+
+                if (_rTMinOn && segs < _rTMinSeg && pos.TakeProfit.HasValue)
+                {
+                    double distTP = Math.Abs(pos.CurrentPrice - pos.TakeProfit.Value) / posSym.PipSize;
+                    if (distTP < _rTMinUmbral)
+                    {
+                        double nuevoTP = pos.TradeType == TradeType.Buy
+                            ? pos.TakeProfit.Value + (_rTMinPips * posSym.PipSize)
+                            : pos.TakeProfit.Value - (_rTMinPips * posSym.PipSize);
+                        ModifyPosition(pos, pos.StopLoss, nuevoTP);
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // PANEL VISUAL EN CTRADER
+        // ═══════════════════════════════════════════════════════════════
+        private void DrawPanel()
+        {
+            var ahora = DateTime.UtcNow;
+            string modo = ModoEjecutor ? "EJECUTOR" : "VISUAL";
+
+            var activosIds = Positions.Select(p => p.Id.ToString()).ToList();
+            var remove = _drawnIds.Where(id => !activosIds.Contains(id)).ToList();
+            foreach (var id in remove) { Chart.RemoveObject(_panelPrefix + "POS_" + id); _drawnIds.Remove(id); }
+
+            Chart.DrawStaticText(_panelPrefix + "TITLE",
+                "{{NOTI_PREFIX}}" + modo + "\\n#" + Account.Number + " · " + ahora.ToString("HH:mm:ss"),
+                VerticalAlignment.Top, HorizontalAlignment.Left, Color.Gold);
+
+            if (Positions.Count == 0)
+            {
+                Chart.DrawStaticText(_panelPrefix + "POS", "\\n\\n\\nSin posiciones abiertas",
+                    VerticalAlignment.Top, HorizontalAlignment.Left, Color.Gray);
+                return;
+            }
+            try { Chart.RemoveObject(_panelPrefix + "POS"); } catch { }
+
+            var posList = Positions.OrderBy(p => p.EntryTime).ToList();
+            int yOffset = 0;
+            foreach (var pos in posList)
+            {
+                var id = pos.Id.ToString();
+                if (!_drawnIds.Contains(id)) _drawnIds.Add(id);
+                double segs = _posOpenTimes.ContainsKey(id) ? (ahora - _posOpenTimes[id]).TotalSeconds : 0;
+                var posSym = Symbols.GetSymbol(pos.SymbolName);
+                double lotes = posSym != null ? posSym.VolumeInUnitsToQuantity(pos.VolumeInUnits) : 0;
+                string dir = pos.TradeType == TradeType.Buy ? "BUY" : "SELL";
+                bool tieneSL = pos.StopLoss.HasValue;
+                bool cumpleTMin = !_rTMinOn || segs >= _rTMinSeg;
+
+                Color color; string emoji;
+                if (!tieneSL)
+                {
+                    if (_rSLOn && segs >= _rSLAviso) { color = Color.Red; emoji = "🔴"; }
+                    else { color = Color.Orange; emoji = "🟠"; }
+                }
+                else if (!cumpleTMin) { color = Color.Yellow; emoji = "🟡"; }
+                else { color = Color.FromHex("#00E676"); emoji = "🟢"; }
+
+                string slTxt = tieneSL ? "[SL ✓]" : "[⚠ SIN SL]";
+                string pnlTxt = (pos.NetProfit >= 0 ? "+" : "") + "$" + pos.NetProfit.ToString("F2");
+                string linea = emoji + " " + pos.SymbolName + " " + dir + " " + lotes.ToString("F2") + "lt " + slTxt + " · " + FormatTiempo(segs) + " · " + pnlTxt;
+
+                string padding = new string('\\n', 3 + yOffset);
+                Chart.DrawStaticText(_panelPrefix + "POS_" + id, padding + linea,
+                    VerticalAlignment.Top, HorizontalAlignment.Left, color);
+                yOffset++;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // PUBLICAR posiciones_live
+        // ═══════════════════════════════════════════════════════════════
+        private async void PublicarPosicionesLiveAsync()
+        {
+            // Tomar snapshot de posiciones para evitar modificación durante iteración
+            List<Position> posSnapshot = new List<Position>();
+            try { foreach (var p in Positions) posSnapshot.Add(p); } catch { return; }
+
+            // v04: preparar TODOS los JSON primero y despues publicar en PARALELO con Task.WhenAll.
+            //      Antes era secuencial (await dentro del foreach): con 3+ posiciones
+            //      la ultima tardaba tanto que el HTML la filtraba por "demasiado vieja".
+            List<string> jsons = new List<string>();
+            foreach (var pos in posSnapshot)
+            {
+                try
+                {
+                    var sym = Symbols.GetSymbol(pos.SymbolName);
+                    if (sym == null) continue;
+                    var id = pos.Id.ToString();
+                    DateTime openTime = _posOpenTimes.ContainsKey(id) ? _posOpenTimes[id] : pos.EntryTime;
+                    double segs = (DateTime.UtcNow - openTime).TotalSeconds;
+                    double lotes = sym.VolumeInUnitsToQuantity(pos.VolumeInUnits);
+                    int slPips = 0; double slPrecio = 0;
+                    if (pos.StopLoss.HasValue) { slPips = (int)(Math.Abs(pos.EntryPrice - pos.StopLoss.Value) / sym.PipSize); slPrecio = pos.StopLoss.Value; }
+                    int tpPips = 0; double tpPrecio = 0;
+                    if (pos.TakeProfit.HasValue) { tpPips = (int)(Math.Abs(pos.EntryPrice - pos.TakeProfit.Value) / sym.PipSize); tpPrecio = pos.TakeProfit.Value; }
+                    double slMaxPips = _posMaxSLPips.ContainsKey(id) ? _posMaxSLPips[id] : slPips;
+                    double riesgoMax = slMaxPips * sym.PipValue * pos.VolumeInUnits;
+                    double riesgoActual = slPips > 0 ? slPips * sym.PipValue * pos.VolumeInUnits : 0;
+                    bool cumpleTMin = !_rTMinOn || segs >= _rTMinSeg;
+                    int tMinRestante = _rTMinOn && segs < _rTMinSeg ? (int)(_rTMinSeg - segs) : 0;
+                    string tipo = pos.TradeType == TradeType.Buy ? "COMPRA" : "VENTA";
+
+                    string json = "{" +
+                        "\\"trade_id\\":\\"" + id + "\\"," +
+                        "\\"user_id\\":\\"" + _resolvedUserId + "\\"," +
+                        "\\"cuenta_id\\":\\"" + Account.Number + "\\"," +
+                        "\\"simbolo\\":\\"" + pos.SymbolName + "\\"," +
+                        "\\"tipo\\":\\"" + tipo + "\\"," +
+                        "\\"lotes\\":" + lotes.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                        "\\"precio_apertura\\":" + pos.EntryPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                        "\\"precio_actual\\":" + pos.CurrentPrice.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                        "\\"sl_precio\\":" + (slPrecio > 0 ? slPrecio.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) : "null") + "," +
+                        "\\"tp_precio\\":" + (tpPrecio > 0 ? tpPrecio.ToString("F5", System.Globalization.CultureInfo.InvariantCulture) : "null") + "," +
+                        "\\"sl_pips\\":" + (slPips > 0 ? slPips.ToString() : "null") + "," +
+                        "\\"tp_pips\\":" + (tpPips > 0 ? tpPips.ToString() : "null") + "," +
+                        "\\"sl_pips_maximo\\":" + ((int)slMaxPips).ToString() + "," +
+                        "\\"riesgo_actual\\":" + riesgoActual.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                        "\\"riesgo_maximo\\":" + riesgoMax.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                        "\\"pnl_actual\\":" + pos.NetProfit.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + "," +
+                        "\\"abierta_at\\":\\"" + openTime.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\\"," +
+                        "\\"sl_fue_automatico\\":" + (_slAutoPlaced.ContainsKey(id) && _slAutoPlaced[id] ? "true" : "false") + "," +
+                        "\\"duracion_seg\\":" + ((int)segs).ToString() + "," +
+                        "\\"cumple_tiempo_minimo\\":" + (cumpleTMin ? "true" : "false") + "," +
+                        "\\"tiempo_minimo_restante_seg\\":" + tMinRestante.ToString() + "," +
+                        "\\"updated_at\\":\\"" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\\"" +
+                        "}";
+                    jsons.Add(json);
+                }
+                catch { /* protege cada posicion independiente */ }
+            }
+
+            // v04: publicar en paralelo. Con Task.WhenAll todas las posiciones
+            //      llegan a Supabase con timestamps casi identicos.
+            if (jsons.Count == 0) return;
+            try
+            {
+                var tasks = new List<Task>();
+                foreach (var json in jsons) tasks.Add(UpsertPosLive(json));
+                await Task.WhenAll(tasks);
+            }
+            catch { }
+        }
+
+        private async Task UpsertPosLive(string json)
+        {
+            try
+            {
+                string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/posiciones_live?on_conflict=trade_id";
+                var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                req.Headers.Add("Prefer", "return=minimal,resolution=merge-duplicates");
+                req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                await _http.SendAsync(req);
+            }
+            catch { }
+        }
+
+        private async void DeletePosLiveAsync(string tradeId)
+        {
+            try
+            {
+                string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/posiciones_live?trade_id=eq." + tradeId;
+                var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Delete, url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                await _http.SendAsync(req);
+            }
+            catch { }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // HELPERS
+        // ═══════════════════════════════════════════════════════════════
+        private string FormatTiempo(double s)
+        {
+            int si = (int)s;
+            if (si < 60) return si + "s";
+            if (si < 3600) return (si / 60) + "m " + (si % 60) + "s";
+            return (si / 3600) + "h " + ((si % 3600) / 60) + "m";
+        }
+
+        private bool EnFranja(string hora, string desde, string hasta)
+        {
+            if (string.IsNullOrEmpty(desde) || string.IsNullOrEmpty(hasta)) return false;
+            return string.Compare(hora, desde) >= 0 && string.Compare(hora, hasta) <= 0;
+        }
+
+        // v19: hora "ahora" en zona del usuario (UTC + offset)
+        private DateTime UserNow()
+        {
+            return DateTime.UtcNow.AddHours(UserTimezoneOffsetHours);
+        }
+        // v19: convertir un DateTime UTC al equivalente "como se ve" en zona del usuario
+        private DateTime ToUserTime(DateTime utc)
+        {
+            // Algunos DateTime de cTrader pueden venir como Unspecified pero en realidad son UTC
+            return utc.AddHours(UserTimezoneOffsetHours);
+        }
+        private string UserToday()
+        {
+            return UserNow().ToString("yyyy-MM-dd");
+        }
+
+        private int ContarOpsHoy()
+        {
+            int c = 0; string hoy = UserToday();
+            foreach (var pos in Positions) if (ToUserTime(pos.EntryTime).ToString("yyyy-MM-dd") == hoy) c++;
+            try { foreach (var h in History) if (ToUserTime(h.EntryTime).ToString("yyyy-MM-dd") == hoy) c++; } catch { }
+            return c;
+        }
+
+        private double PerdidaHoy()
+        {
+            double t = 0; string hoy = UserToday();
+            foreach (var pos in Positions) if (pos.NetProfit < 0) t += Math.Abs(pos.NetProfit);
+            try { foreach (var h in History) if (ToUserTime(h.ClosingTime).ToString("yyyy-MM-dd") == hoy && h.NetProfit < 0) t += Math.Abs(h.NetProfit); } catch { }
+            return t;
+        }
+
+        private double GananciaHoy()
+        {
+            double t = 0; string hoy = UserToday();
+            foreach (var pos in Positions) if (pos.NetProfit > 0) t += pos.NetProfit;
+            try { foreach (var h in History) if (ToUserTime(h.ClosingTime).ToString("yyyy-MM-dd") == hoy && h.NetProfit > 0) t += h.NetProfit; } catch { }
+            return t;
+        }
+
+        private double GananciaTotal()
+        {
+            double t = 0;
+            foreach (var pos in Positions) t += pos.NetProfit;
+            try { foreach (var h in History) t += h.NetProfit; } catch { }
+            return t;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SUPABASE HTTP
+        // ═══════════════════════════════════════════════════════════════
+        private async void SendToSupabaseAsync(string tabla, string json)
+        {
+            if (string.IsNullOrEmpty(SupabaseUrl) || string.IsNullOrEmpty(SupabaseKey))
+            {
+                Print("[v21] SendToSupabase: URL o Key vacios, no se envia");
+                return;
+            }
+            Print("[v21] SendToSupabase: enviando a " + tabla + " (" + json.Length + " chars)");
+            for (int i = 0; i < 3; i++)
+            {
+                try
+                {
+                    string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/" + tabla;
+                    var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, url);
+                    req.Headers.Add("apikey", SupabaseKey);
+                    req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                    req.Headers.Add("Prefer", "return=minimal");
+                    req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                    var resp = await _http.SendAsync(req);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        Print("[v21] SendToSupabase OK: " + tabla + " (intento " + (i+1) + ") status=" + (int)resp.StatusCode);
+                        return;
+                    }
+                    string body = "";
+                    try { body = await resp.Content.ReadAsStringAsync(); } catch { }
+                    Print("[v21] SendToSupabase ERROR: " + tabla + " (intento " + (i+1) + "/3) status=" + (int)resp.StatusCode + " body=" + (body.Length > 200 ? body.Substring(0, 200) : body));
+                }
+                catch (Exception ex)
+                {
+                    Print("[v21] SendToSupabase EXCEPCION: " + tabla + " (intento " + (i+1) + "/3) ex=" + ex.Message);
+                }
+                await Task.Delay(2000);
+            }
+            Print("[v21] SendToSupabase FALLO DEFINITIVO: " + tabla + " - JSON: " + (json.Length > 300 ? json.Substring(0, 300) : json));
+        }
+
+        private async void UpdateOrdenEstado(long id, string estado, string motivo, string tradeId = null)
+        {
+            try { await UpdateOrdenEstadoTask(id, estado, motivo, tradeId); } catch { }
+        }
+
+        // v04: devuelve bool para saber si la actualizacion fue exitosa
+        private bool UpdateOrdenEstadoSync(long id, string estado, string motivo, string tradeId)
+        {
+            try {
+                var task = UpdateOrdenEstadoTask(id, estado, motivo, tradeId);
+                if (!task.Wait(5000)) return false;
+                return task.Result;
+            } catch { return false; }
+        }
+
+        private async Task<bool> UpdateOrdenEstadoTask(long id, string estado, string motivo, string tradeId)
+        {
+            try {
+                string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/ordenes_pendientes?id=eq." + id;
+                string json = "{\\"estado\\":\\"" + estado + "\\"";
+                if (motivo != null) json += ",\\"motivo_rechazo\\":\\"" + motivo.Replace("\\"", "'") + "\\"";
+                if (tradeId != null) json += ",\\"trade_id_generado\\":\\"" + tradeId + "\\"";
+                json += ",\\"procesada_at\\":\\"" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\\"}";
+                var req = new HttpRequestMessage(new System.Net.Http.HttpMethod("PATCH"), url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                req.Headers.Add("Prefer", "return=minimal");
+                req.Content = new StringContent(json, Encoding.UTF8, "application/json");
+                var resp = await _http.SendAsync(req);
+                return resp.IsSuccessStatusCode;
+            } catch { return false; }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // CARGAR REGLAS DE SUPABASE
+        // ═══════════════════════════════════════════════════════════════
+        private async void FetchRulesAsync()
+        {
+            if (string.IsNullOrEmpty(SupabaseUrl) || string.IsNullOrEmpty(SupabaseKey) || string.IsNullOrEmpty(_resolvedUserId)) return;
+            try
+            {
+                string clave = "bot_rules_" + Account.Number.ToString();
+                string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/datos_app?user_id=eq." + _resolvedUserId + "&clave=eq." + clave + "&select=valor";
+                var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Get, url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                var resp = await _http.SendAsync(req);
+                if (!resp.IsSuccessStatusCode) return;
+                string body = await resp.Content.ReadAsStringAsync();
+                if (string.IsNullOrEmpty(body) || body == "[]") return;
+                string valor = ExtractJsonString(body, "valor");
+                if (string.IsNullOrEmpty(valor)) return;
+
+                BeginInvokeOnMainThread(() => {
+                    try
+                    {
+                        _rMaxOpsOn    = ExtractBool(valor, "maxops", "on");
+                        _rMaxOpsVal   = (int)ExtractDouble(valor, "maxops", "val");
+                        _rPerdDiaOn   = ExtractBool(valor, "perddia", "on");
+                        _rPerdDiaVal  = ExtractDouble(valor, "perddia", "val");
+                        _rGanDiaOn    = ExtractBool(valor, "gandia", "on");
+                        _rGanDiaVal   = ExtractDouble(valor, "gandia", "val");
+                        _rGanCuentaOn = ExtractBool(valor, "gancuenta", "on");
+                        _rGanCuentaVal= ExtractDouble(valor, "gancuenta", "val");
+                        _rMaxLotOn    = ExtractBool(valor, "maxlot", "on");
+                        _rMaxLotVal   = ExtractDouble(valor, "maxlot", "val");
+                        _rHorarioOn   = ExtractBool(valor, "horario", "on");
+                        _rHorarioDesde= ExtractStr(valor, "horario", "desde");
+                        _rHorarioHasta= ExtractStr(valor, "horario", "hasta");
+                        _rSimbolosOn  = ExtractBool(valor, "simbolos", "on");
+                        _rSimbolosVal = ExtractStr(valor, "simbolos", "val");
+                        _rNoticiasOn  = ExtractBool(valor, "noticias", "on");
+                        _rN1D = ExtractNestedStr(valor, "noticias", "n1", "desde");
+                        _rN1H = ExtractNestedStr(valor, "noticias", "n1", "hasta");
+                        _rN2D = ExtractNestedStr(valor, "noticias", "n2", "desde");
+                        _rN2H = ExtractNestedStr(valor, "noticias", "n2", "hasta");
+                        _rN3D = ExtractNestedStr(valor, "noticias", "n3", "desde");
+                        _rN3H = ExtractNestedStr(valor, "noticias", "n3", "hasta");
+                        _rSLOn        = ExtractBool(valor, "sl", "on");
+                        _rSLTiempo    = (int)ExtractDouble(valor, "sl", "tiempo");
+                        _rSLAntic     = (int)ExtractDouble(valor, "sl", "anticipacion");
+                        _rSLPips      = (int)ExtractDouble(valor, "sl", "pips");
+                        _rSLAviso     = (int)ExtractDouble(valor, "sl", "aviso");
+                        _rTPAutoPips  = (int)ExtractDouble(valor, "sl", "tp_auto_pips"); // v05
+                        _rTMinOn      = ExtractBool(valor, "tmin", "on");
+                        _rTMinSeg     = (int)ExtractDouble(valor, "tmin", "seg");
+                        _rTMinPips    = (int)ExtractDouble(valor, "tmin", "pips");
+                        _rTMinUmbral  = (int)ExtractDouble(valor, "tmin", "umbral");
+                        if (_rTMinUmbral <= 0) _rTMinUmbral = 5;
+                        _rITOn        = ExtractBool(valor, "ideatrading", "on");
+                        _rITVentana   = (int)ExtractDouble(valor, "ideatrading", "ventana");
+                        _rITLimite    = ExtractDouble(valor, "ideatrading", "limite");
+                        _lastRulesFetch = DateTime.UtcNow;
+                    }
+                    catch { }
+                });
+            }
+            catch { }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // JSON HELPERS
+        // ═══════════════════════════════════════════════════════════════
+        private string ExtractJsonString(string json, string key)
+        {
+            string search = "\\"" + key + "\\":";
+            int idx = json.IndexOf(search);
+            if (idx < 0) return "";
+            idx += search.Length;
+            while (idx < json.Length && json[idx] == ' ') idx++;
+            if (idx >= json.Length || json[idx] != '"') return "";
+            idx++;
+            var sb = new StringBuilder();
+            while (idx < json.Length && json[idx] != '"')
+            {
+                if (json[idx] == '\\\\' && idx + 1 < json.Length)
+                {
+                    char next = json[idx + 1];
+                    if (next == '"') sb.Append('"');
+                    else if (next == '\\\\') sb.Append('\\\\');
+                    else if (next == 'n') sb.Append('\\n');
+                    else sb.Append(next);
+                    idx += 2;
+                }
+                else { sb.Append(json[idx]); idx++; }
+            }
+            return sb.ToString();
+        }
+
+        private double ExtractJsonDouble(string json, string key)
+        {
+            string search = "\\"" + key + "\\":";
+            int idx = json.IndexOf(search);
+            if (idx < 0) return 0;
+            idx += search.Length;
+            while (idx < json.Length && json[idx] == ' ') idx++;
+            int end = idx;
+            while (end < json.Length && json[end] != ',' && json[end] != '}' && json[end] != ']') end++;
+            string val = json.Substring(idx, end - idx).Trim();
+            double result;
+            return double.TryParse(val, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out result) ? result : 0;
+        }
+
+        private string GetSubObject(string json, string key)
+        {
+            string search = "\\"" + key + "\\":{";
+            int idx = json.IndexOf(search);
+            if (idx < 0) return "";
+            idx += search.Length - 1;
+            int depth = 0; int start = idx;
+            for (int i = idx; i < json.Length; i++)
+            {
+                if (json[i] == '{') depth++;
+                else if (json[i] == '}') { depth--; if (depth == 0) return json.Substring(start, i - start + 1); }
+            }
+            return "";
+        }
+
+        private bool ExtractBool(string json, string obj, string key)
+        {
+            string sub = GetSubObject(json, obj);
+            if (string.IsNullOrEmpty(sub)) return false;
+            string search = "\\"" + key + "\\":";
+            int idx = sub.IndexOf(search);
+            if (idx < 0) return false;
+            idx += search.Length;
+            while (idx < sub.Length && sub[idx] == ' ') idx++;
+            return idx + 4 <= sub.Length && sub.Substring(idx, 4) == "true";
+        }
+
+        private double ExtractDouble(string json, string obj, string key)
+        {
+            string sub = GetSubObject(json, obj);
+            if (string.IsNullOrEmpty(sub)) return 0;
+            return ExtractJsonDouble(sub, key);
+        }
+
+        private string ExtractStr(string json, string obj, string key)
+        {
+            string sub = GetSubObject(json, obj);
+            if (string.IsNullOrEmpty(sub)) return "";
+            return ExtractJsonString(sub, key);
+        }
+
+        private string ExtractNestedStr(string json, string obj1, string obj2, string key)
+        {
+            string sub1 = GetSubObject(json, obj1);
+            if (string.IsNullOrEmpty(sub1)) return "";
+            string sub2 = GetSubObject(sub1, obj2);
+            if (string.IsNullOrEmpty(sub2)) return "";
+            return ExtractJsonString(sub2, key);
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // STOP
+        // ═══════════════════════════════════════════════════════════════
+        // v07: DETECCION AUTOMATICA DE RETIROS
+        // ═══════════════════════════════════════════════════════════════
+        // Logica: trackeamos Account.Balance entre ticks. Si cae sin que
+        // haya un cierre de posicion reciente que justifique la caida,
+        // asumimos que es un retiro hecho por el broker.
+        // Antifalsos:
+        //  - Tolerancia de 3 segundos despues de un cierre.
+        //  - Tolerancia de 0.50 USD para evitar comisiones residuales.
+        //  - Antes de insertar revisa hist_data y si ya existe un retiro
+        //    con la misma fecha y monto NO inserta.
+        private void CheckRetirosBalance()
+        {
+            if (!ModoEjecutor) return;
+            if (!ActivarRegistro) return;
+            if (string.IsNullOrEmpty(SupabaseUrl) || string.IsNullOrEmpty(SupabaseKey) || string.IsNullOrEmpty(_resolvedUserId)) return;
+
+            double balanceActual = Account.Balance;
+
+            // Inicializacion: la primera vez tomamos el balance como referencia
+            if (!_balanceInitialized)
+            {
+                _lastBalance = balanceActual;
+                _balanceInitialized = true;
+                return;
+            }
+
+            double diferencia = balanceActual - _lastBalance;
+
+            // Sin cambios significativos
+            if (Math.Abs(diferencia) < 0.01)
+            {
+                _lastBalance = balanceActual;
+                return;
+            }
+
+            // Subio: depositos no son retiros, los ignoramos en esta logica
+            if (diferencia > 0)
+            {
+                _lastBalance = balanceActual;
+                return;
+            }
+
+            // Bajo: ver si fue por un cierre de posicion reciente (<= 3 segundos)
+            double caida = Math.Abs(diferencia);
+            bool esCierreReciente = (DateTime.UtcNow - _lastTradeCloseAt).TotalSeconds <= 3.0
+                                    && Math.Abs(_lastTradeCloseNetProfit) > 0
+                                    && Math.Abs(Math.Abs(_lastTradeCloseNetProfit) - caida) < 0.50;
+
+            if (esCierreReciente)
+            {
+                // Es la caida natural de un trade perdedor que acaba de cerrar
+                _lastBalance = balanceActual;
+                _lastTradeCloseNetProfit = 0; // consumir
+                return;
+            }
+
+            // Throttle: no procesar mas de un retiro cada 5s
+            if ((DateTime.UtcNow - _lastRetirosCheck).TotalSeconds < 5) return;
+            _lastRetirosCheck = DateTime.UtcNow;
+
+            if (_retirosCheckInProgress) return;
+            _retirosCheckInProgress = true;
+
+            // Capturamos snapshot porque la insercion es async
+            double montoRetiro = caida;
+            string fechaRetiro = DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+            Print("[v07] Retiro detectado por broker: $" + montoRetiro.ToString("F2") + " fecha " + fechaRetiro);
+
+            // Actualizar referencia ANTES de la insercion async para no procesar dos veces
+            _lastBalance = balanceActual;
+
+            EnviarRetiroAHistDataAsync(fechaRetiro, montoRetiro);
+        }
+
+        private async void EnviarRetiroAHistDataAsync(string fecha, double monto)
+        {
+            try
+            {
+                // 1) Leer hist_data actual
+                string url = SupabaseUrl.TrimEnd('/') + "/rest/v1/datos_app?user_id=eq." + _resolvedUserId + "&clave=eq.hist_data&select=valor";
+                var req = new HttpRequestMessage(System.Net.Http.HttpMethod.Get, url);
+                req.Headers.Add("apikey", SupabaseKey);
+                req.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                var resp = await _http.SendAsync(req);
+                string body = resp.IsSuccessStatusCode ? await resp.Content.ReadAsStringAsync() : "[]";
+
+                string valorJson = "[]";
+                if (!string.IsNullOrEmpty(body) && body != "[]")
+                {
+                    string v = ExtractJsonString(body, "valor");
+                    if (!string.IsNullOrEmpty(v)) valorJson = v;
+                }
+
+                // 2) Antiduplicado: si ya existe entrada con misma fecha y mismo monto, no insertar
+                if (RetiroYaExiste(valorJson, fecha, monto))
+                {
+                    Print("[v07] Retiro ya existe en hist_data, omitiendo: " + fecha + " $" + monto.ToString("F2"));
+                    _retirosCheckInProgress = false;
+                    return;
+                }
+
+                // 3) Construir nueva entrada y agregar al array
+                int proxNum = ContarRetirosEnHistData(valorJson) + 1;
+                string numStr = proxNum.ToString();
+                while (numStr.Length < 3) numStr = "0" + numStr;
+
+                string keyRet = "ret_bot_" + DateTime.UtcNow.Ticks.ToString();
+                string montoStr = monto.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+                string nuevaEntrada = "{\\"key\\":\\"" + keyRet + "\\",\\"num\\":\\"" + numStr +
+                    "\\",\\"fecha\\":\\"" + fecha + "\\",\\"label\\":\\"" + fecha +
+                    "\\",\\"monto\\":" + montoStr + ",\\"rej\\":false,\\"nota\\":null,\\"nota_user\\":\\"\\",\\"origen\\":\\"bot\\"}";
+
+                string nuevoArrayJson;
+                string trimmed = valorJson.Trim();
+                if (trimmed == "[]" || trimmed == "")
+                {
+                    nuevoArrayJson = "[" + nuevaEntrada + "]";
+                }
+                else
+                {
+                    // Insertar antes del ultimo "]"
+                    int cierre = trimmed.LastIndexOf(']');
+                    if (cierre < 0)
+                    {
+                        nuevoArrayJson = "[" + nuevaEntrada + "]";
+                    }
+                    else
+                    {
+                        string sinCierre = trimmed.Substring(0, cierre).TrimEnd();
+                        // Si el array esta vacio "[" no necesitamos coma
+                        bool tieneContenido = sinCierre.Length > 1 && sinCierre.Substring(1).Trim().Length > 0;
+                        nuevoArrayJson = sinCierre + (tieneContenido ? "," : "") + nuevaEntrada + "]";
+                    }
+                }
+
+                // 4) Upsert datos_app con el nuevo valor
+                string upsertUrl = SupabaseUrl.TrimEnd('/') + "/rest/v1/datos_app?on_conflict=user_id,clave";
+                string payload = "{\\"user_id\\":\\"" + _resolvedUserId + "\\",\\"clave\\":\\"hist_data\\",\\"valor\\":" + nuevoArrayJson + "}";
+                var req2 = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, upsertUrl);
+                req2.Headers.Add("apikey", SupabaseKey);
+                req2.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                req2.Headers.Add("Prefer", "resolution=merge-duplicates,return=minimal");
+                req2.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+                var resp2 = await _http.SendAsync(req2);
+
+                if (resp2.IsSuccessStatusCode)
+                    Print("[v07] Retiro grabado en hist_data: " + fecha + " $" + monto.ToString("F2"));
+                else
+                    Print("[v07] Error grabando retiro en hist_data: " + resp2.StatusCode);
+            }
+            catch (Exception ex)
+            {
+                Print("[v07] Excepcion en EnviarRetiroAHistData: " + ex.Message);
+            }
+            finally
+            {
+                _retirosCheckInProgress = false;
+            }
+        }
+
+        // Detecta si ya existe en el JSON un retiro con la misma fecha y monto (tolerancia 0.01)
+        private bool RetiroYaExiste(string arrayJson, string fecha, double monto)
+        {
+            if (string.IsNullOrEmpty(arrayJson)) return false;
+            try
+            {
+                int idx = 0;
+                while (idx < arrayJson.Length)
+                {
+                    int fStart = arrayJson.IndexOf("\\"fecha\\":\\"", idx);
+                    if (fStart < 0) break;
+                    fStart += "\\"fecha\\":\\"".Length;
+                    int fEnd = arrayJson.IndexOf("\\"", fStart);
+                    if (fEnd < 0) break;
+                    string fechaItem = arrayJson.Substring(fStart, fEnd - fStart);
+
+                    int mStart = arrayJson.IndexOf("\\"monto\\":", fEnd);
+                    if (mStart < 0) { idx = fEnd + 1; continue; }
+                    mStart += "\\"monto\\":".Length;
+                    int mEnd = mStart;
+                    while (mEnd < arrayJson.Length && (char.IsDigit(arrayJson[mEnd]) || arrayJson[mEnd] == '.' || arrayJson[mEnd] == '-')) mEnd++;
+                    string montoStr = arrayJson.Substring(mStart, mEnd - mStart);
+                    double montoItem;
+                    if (!double.TryParse(montoStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out montoItem))
+                    {
+                        idx = mEnd; continue;
+                    }
+
+                    if (fechaItem == fecha && Math.Abs(montoItem - monto) < 0.01) return true;
+                    idx = mEnd;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private int ContarRetirosEnHistData(string arrayJson)
+        {
+            if (string.IsNullOrEmpty(arrayJson) || arrayJson.Trim() == "[]") return 0;
+            int n = 0;
+            int idx = 0;
+            while (idx < arrayJson.Length)
+            {
+                int s = arrayJson.IndexOf("\\"key\\":\\"", idx);
+                if (s < 0) break;
+                n++;
+                idx = s + 1;
+            }
+            return n;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // OnStop
+        // ═══════════════════════════════════════════════════════════════
+        protected override void OnStop()
+        {
+            Timer.Stop();
+            try { Chart.RemoveObject(_panelPrefix + "TITLE"); } catch { }
+            try { Chart.RemoveObject(_panelPrefix + "POS"); } catch { }
+            foreach (var id in _drawnIds) { try { Chart.RemoveObject(_panelPrefix + "POS_" + id); } catch { } }
+            Positions.Closed -= OnPositionClosed;
+            Positions.Opened -= OnPositionOpened;
+        }
+    }
+}
+`;
+
+// Genera valores aleatorios únicos para los marcadores
+function tbGenerarValoresUnicos(userId, userName){
+  // Sufijos aleatorios para identificadores
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  var nums = '23456789';
+  function suf(){
+    var s = '';
+    for(var i=0;i<3;i++) s += chars.charAt(Math.floor(Math.random()*chars.length));
+    s += nums.charAt(Math.floor(Math.random()*nums.length));
+    return s;
+  }
+  var sufijo = suf();
+
+  // Pool de nombres genéricos para clase
+  var nombresClase = [
+    'TradeJournalSync','MarketTracker','OrderLogger','PositionRecorder',
+    'TradeAssistant','MarketHelper','TradeMonitor','OrderTracker',
+    'JournalRobot','MarketAnalyzer','TradeRecorder','OrderSync'
+  ];
+  var nombreClase = nombresClase[Math.floor(Math.random()*nombresClase.length)] + sufijo;
+
+  // Pool de mensajes de log inicio
+  var logsInicio = [
+    'Sistema de gestion de trading iniciado',
+    'Bot de journaling activo',
+    'Monitor de operaciones en linea',
+    'Trade tracker iniciado correctamente',
+    'Sistema de registro activado'
+  ];
+  var logInicio = logsInicio[Math.floor(Math.random()*logsInicio.length)];
+
+  // Pool de prefijos de notificación
+  var notiPrefixes = [
+    '📊 BOT TRADING · ',
+    '📈 MARKET MONITOR · ',
+    '🎯 TRADE TRACKER · ',
+    '📋 JOURNAL · ',
+    '⚡ BOT · '
+  ];
+  var notiPrefix = notiPrefixes[Math.floor(Math.random()*notiPrefixes.length)];
+
+  // Año random reciente para el header
+  var year = 2025 + Math.floor(Math.random()*2);
+  var month = Math.floor(Math.random()*12) + 1;
+
+  return {
+    'CLASS_NAME': nombreClase,
+    'HEADER_TITLE': nombreClase + ' - cTrader Bot v' + (10+Math.floor(Math.random()*30)),
+    'HEADER_AUTHOR': 'Build: ' + year + '-' + ('0'+month).slice(-2),
+    'LOG_INICIO': logInicio,
+    'NOTI_PREFIX': notiPrefix,
+    'BRAND_NAME': nombreClase.toUpperCase(),
+    'AUTHOR': 'Trader ' + sufijo
+  };
+}
+
+// Genera el archivo .cs completo para un usuario y dispara la descarga
+function tbGenerarBotUnico(userId){
+  var u = TB_USERS.filter(function(x){return x.id===userId;})[0];
+  if(!u){ toast('Usuario no encontrado','Error','red'); return; }
+  if(!u.botCodigo){
+    toast('Genera primero el código de bot para este usuario','Bot','red');
+    return;
+  }
+
+  var valores = tbGenerarValoresUnicos(userId, u.nombre);
+  var bot = TB_BOT_TEMPLATE;
+
+  // Reemplazar marcadores
+  Object.keys(valores).forEach(function(k){
+    var marker = '{{' + k + '}}';
+    bot = bot.split(marker).join(valores[k]);
+  });
+
+  // Inyectar el código de acceso del usuario como DefaultValue
+  bot = bot.replace(
+    /\[Parameter\("Codigo Acceso"[^\]]*\]/,
+    '[Parameter("Codigo Acceso", Group = "Conexion", DefaultValue = "' + u.botCodigo + '")]'
+  );
+
+  // Descargar
+  var blob = new Blob([bot], {type:'text/plain;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = valores.CLASS_NAME + '.cs';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);}, 1000);
+
+  // Registrar actividad
+  try{
+    tbRegistrarActividad(TB_USER.id,'admin','bot','Generó bot único para '+u.nombre+': '+valores.CLASS_NAME);
+    tbEnviarMensaje('admin_sistema',userId,'Tu Bot Personalizado','Tu bot ha sido generado con código único: '+valores.CLASS_NAME+'.cs\n\nEl administrador te lo enviará compilado (.algo) en breve.',true);
+  }catch(e){}
+
+  toast('Bot único generado: ' + valores.CLASS_NAME + '.cs','Bot','green');
+}
+
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v41</div>
+<div class="tb-version-tag" id="tb-version-tag">v42</div>
 
 </body>
 </html>
