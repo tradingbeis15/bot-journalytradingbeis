@@ -1,5 +1,21 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v41 - Admin = VIP fijo + 3 nuevas notificaciones
+Build: 2026-04-29
+Cambios desde v40:
+  PUNTO 1: Admin (rol='admin') siempre se trata como plan VIP, sin
+           importar qué tenga en BD. tbPlan() retorna 'vip' si admin.
+           Aplicado en: bloqueo parcial, cargar demo, restricciones,
+           y consistente en todos los flujos.
+  PUNTO 2: Bot también detecta rol admin y trata como VIP automático.
+  PUNTO 3: Tres nuevas notificaciones en la barra ticker:
+           - 📨 Mensajes nuevos sin leer (con conteo)
+           - ⚠️ Plan vence en 3 días o menos (color naranja)
+           - 🚨 Plan vence HOY o ya venció (color rojo, pulsando)
+           No aplican a admin (admin no tiene plan que vencer).
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v40 - HTML controla TODA la zona horaria
 Build: 2026-04-29
 Cambios desde v39:
@@ -231,7 +247,7 @@ Creado por Daniel Pérez
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>TRADINGBEIS v40</title>
+<title>TRADINGBEIS v41</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ─── SUPABASE CONFIG ───────────────────────────────────────────
@@ -2050,8 +2066,8 @@ body.tb-plan-locked .nav-i.tb-nav-locked::after{
 </style>
 <script>
 // v05: marca de version para diagnostico en consola
-console.log('%c[TB] TRADINGBEIS v40 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
-window.TB_VERSION = 'v40';
+console.log('%c[TB] TRADINGBEIS v41 cargado','color:#d4a843;font-weight:bold;font-size:12px;');
+window.TB_VERSION = 'v41';
 
 function volverPortada(){
   document.getElementById('login-screen').classList.remove('show');
@@ -5055,6 +5071,55 @@ function tbConstruirNotificaciones(){
     }catch(e){}
   }
 
+  // ─── v41: Notificación de mensaje nuevo recibido ──────────────
+  try {
+    if(typeof TB_MENSAJES !== 'undefined' && TB_MENSAJES && TB_USER && TB_USER.id){
+      var noLeidos = TB_MENSAJES.filter(function(m){
+        if(!m || m.leido) return false;
+        // El mensaje es PARA mí (yo soy el destinatario)
+        return String(m.para_id) === String(TB_USER.id) || m.para_id === 'admin_sistema' && tbEsAdmin();
+      });
+      if(noLeidos.length > 0){
+        var txt = noLeidos.length === 1
+          ? 'Tienes 1 mensaje nuevo sin leer'
+          : 'Tienes ' + noLeidos.length + ' mensajes nuevos sin leer';
+        lista.push({icon:'📨', texto: txt, pulse:true, color:'var(--gold)'});
+      }
+    }
+  } catch(e){}
+
+  // ─── v41: Notificación de vencimiento de plan ─────────────────
+  // No aplica para admin (admin no tiene plan que vencer)
+  try {
+    if(TB_USER && !tbEsAdmin() && TB_USER.planVence){
+      var diasRestantes = tbDiasHasta(TB_USER.planVence);
+      if(diasRestantes !== null){
+        if(diasRestantes < 0){
+          lista.push({
+            icon:'🚨',
+            texto:'Tu plan VENCIÓ hace ' + Math.abs(diasRestantes) + (Math.abs(diasRestantes)===1?' día':' días') + '. Renueva para seguir usando el sistema.',
+            pulse:true,
+            color:'var(--red)'
+          });
+        } else if(diasRestantes === 0){
+          lista.push({
+            icon:'🚨',
+            texto:'Tu plan vence HOY. Renueva para no perder acceso.',
+            pulse:true,
+            color:'var(--red)'
+          });
+        } else if(diasRestantes <= 3){
+          lista.push({
+            icon:'⚠️',
+            texto:'Tu plan vence en ' + diasRestantes + (diasRestantes===1?' día':' días') + '. Renueva pronto.',
+            pulse:true,
+            color:'var(--orange)'
+          });
+        }
+      }
+    }
+  } catch(e){}
+
   TB_NOTI_LIST = lista;
   if(TB_NOTI_IDX>=lista.length) TB_NOTI_IDX = 0;
 }
@@ -6581,7 +6646,7 @@ function guardarActual(){
   if(c.empresa||c.ncuenta) c.ok=true;
   // Guardar todo en Supabase
   // v35: si plan = básico no persistir (todo es solo vista, datos demo)
-  if(TB_USER&&TB_USER.id&&TB_USER.plan!=='basico'){
+  if(TB_USER&&TB_USER.id&&tbPlan()!=='basico'){
     sbGuardarDatos(TB_USER.id,'AC',AC);
     sbGuardarDatos(TB_USER.id,'CID',CID);
     sbGuardarDatos(TB_USER.id,'tb_users',TB_USERS);
@@ -7770,7 +7835,8 @@ function tbCheckAcceso(){
   // Bloqueo TOTAL: suspendido, pausado, rechazado, pendiente → solo cerrar sesión
   var bloqueoTotal = (TB_USER.estado==='suspendido' || TB_USER.estado==='pausado' || TB_USER.estado==='rechazado' || TB_USER.estado==='pendiente');
   // Bloqueo PARCIAL: plan básico o viewer → puede solicitar plan o contactar admin
-  var bloqueoParcial = !bloqueoTotal && (TB_USER.plan==='basico' || TB_USER.rol==='viewer');
+  // v41: tbPlan() respeta admin (admin siempre VIP)
+  var bloqueoParcial = !bloqueoTotal && (tbPlan()==='basico' || (TB_USER.rol==='viewer' && !tbEsAdmin()));
   var bloqueado = bloqueoTotal || bloqueoParcial;
 
   if(bloqueado){
@@ -7798,7 +7864,7 @@ function tbCheckAcceso(){
       // BLOQUEO PARCIAL — puede solicitar plan o contactar admin
       icono = '🔐';
       titulo = 'Acceso Restringido';
-      razon = TB_USER.plan==='basico' ? 'Tu plan Básico solo te permite ver el sistema. No puedes operar.' : 'Modo solo lectura activo';
+      razon = tbPlan()==='basico' ? 'Tu plan Básico solo te permite ver el sistema. No puedes operar.' : 'Modo solo lectura activo';
       botones = '<button class="btn-g" style="margin-bottom:10px;" onclick="mostrarSolicitarPlan()">📋 Solicitar Cambio de Plan</button><br>' +
                 '<button class="btn-o" onclick="navMiCuenta(\'mensajes\');document.getElementById(\'tb-plan-blocker\').style.display=\'none\';">Contactar Administrador</button>';
     }
@@ -9383,7 +9449,12 @@ var TB_PAGES_BLOQUEADAS_PROP = ['page-ejecucion'];
 
 // Helper: detectar plan
 function tbEsAdmin(){ return TB_USER && TB_USER.rol === 'admin'; }
-function tbPlan(){ return (TB_USER && TB_USER.plan) ? TB_USER.plan : 'basico'; }
+// v41: admin SIEMPRE se trata como VIP, sin importar qué diga el campo plan en BD.
+function tbPlan(){
+  if(!TB_USER) return 'basico';
+  if(TB_USER.rol === 'admin') return 'vip';
+  return TB_USER.plan || 'basico';
+}
 function tbEsBasicoRestringido(){
   if(!TB_USER) return false;
   if(tbEsAdmin()) return false;
@@ -9522,8 +9593,8 @@ function tbAvisoCuentaBloqueada(){
 // y conozca la app. La cuenta NO se persiste en Supabase (es solo visual).
 function tbCargarDemoBasico(){
   if(!TB_USER) return;
-  if(TB_USER.rol === 'admin') return;          // admin no necesita demo
-  if(TB_USER.plan !== 'basico') return;        // solo plan básico
+  if(tbEsAdmin()) return;                      // admin no necesita demo
+  if(tbPlan() !== 'basico') return;            // solo plan básico
   if(!AC || !AC[0]) return;                    // AC no inicializado todavía
   if(AC[0].T && AC[0].T.length > 0) return;    // ya tiene operaciones, no sobrescribir
 
@@ -11373,7 +11444,7 @@ function botImportarHistorico() {
 </script>
 
 <!-- v05: etiqueta de version siempre visible en esquina inferior derecha -->
-<div class="tb-version-tag" id="tb-version-tag">v40</div>
+<div class="tb-version-tag" id="tb-version-tag">v41</div>
 
 </body>
 </html>
