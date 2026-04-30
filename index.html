@@ -1,5 +1,18 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════
+TRADINGBEIS v43 - Fix: retiros ahora persisten en Supabase
+Build: 2026-04-29
+Cambios desde v42:
+  BUG CRÍTICO: updateRet() modificaba RET_DATA y HIST_DATA en memoria
+               pero NUNCA llamaba sbGuardarDatos. Al recargar o cerrar
+               la app los retiros se perdían.
+  FIX: updateRet() ahora persiste AC (con .H y .R actualizados) +
+       hist_data en Supabase después de cada cambio.
+  FIX: saveRetNota() ahora también persiste la nota en Supabase.
+  delRetiro() ya persistía correctamente (sin cambios).
+═══════════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════════
 TRADINGBEIS v42 - Generador de Bot Único por Usuario
 Build: 2026-04-29
 Cambios desde v41:
@@ -5623,7 +5636,16 @@ function delTrade(idx){
 function filterOps(){var sym=(ge('fil-sym').value||'').toUpperCase().trim();var from=ge('fil-from').value;var to=ge('fil-to').value;var tipo=ge('fil-tipo').value;var est=ge('fil-est').value;renderOps(TRADES.filter(function(t){if(sym&&t[1].toUpperCase().indexOf(sym)<0)return false;if(from&&t[2]<from)return false;if(to&&t[2]>to)return false;if(tipo&&t[8]!==tipo)return false;if(est&&t[11]!==est)return false;return true;}));}
 function clearFilters(){['fil-sym','fil-from','fil-to'].forEach(function(id){ge(id).value='';});ge('fil-tipo').value='';ge('fil-est').value='';filterOps();}
 
-function saveRetNota(idx){var val=ge('ret-nota-input-'+idx).value;HIST_DATA[idx].nota_user=val;toast('Nota guardada','Retiro','gold');}
+function saveRetNota(idx){
+  var val=ge('ret-nota-input-'+idx).value;
+  HIST_DATA[idx].nota_user=val;
+  toast('Nota guardada','Retiro','gold');
+  if(TB_USER&&TB_USER.id&&AC&&AC[CID]&&tbPlan()!=='basico'){
+    AC[CID].H=HIST_DATA.slice();
+    sbGuardarDatos(TB_USER.id,'AC',AC);
+    sbGuardarDatos(TB_USER.id,'hist_data',HIST_DATA);
+  }
+}
 function updateRetCards(){
   var pct=getDivision();var pctNum=Math.round(pct*100);
   var pnlTotal=TRADES.reduce(function(s,t){return s+(parseFloat(t[7])||0);},0);
@@ -5868,6 +5890,13 @@ function updateRet(mi,ri){
   // Rebuild calendar and update proximo retiro
   buildRetMes();
   calcDash();
+  // PERSISTIR EN SUPABASE
+  if(TB_USER&&TB_USER.id&&AC&&AC[CID]&&tbPlan()!=='basico'){
+    AC[CID].H = HIST_DATA.slice();
+    try{AC[CID].R=JSON.parse(JSON.stringify(RET_DATA));}catch(e){}
+    sbGuardarDatos(TB_USER.id,'AC',AC);
+    sbGuardarDatos(TB_USER.id,'hist_data',HIST_DATA);
+  }
 }
 var calCurIdx=3;
 function buildCalMes(highlight){
